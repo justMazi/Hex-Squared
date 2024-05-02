@@ -1,0 +1,21 @@
+.grid-wrapper {
+  height: 100%;
+}
+.grid {
+  height: 80%;
+}
+
+svg {
+  width: 100%;
+  height: 100%;
+  fill: #979797;
+  fill-opacity: 1;
+}
+
+g:hover {
+  fill: #971414;
+}
+
+.hexi {
+  fill: rgb(165, 165, 165);
+}
