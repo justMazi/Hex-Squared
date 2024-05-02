@@ -1,2 +1,3 @@
 # Hex-Squared
-Bachelors thesis inspired by the existing board game hex
+
+Bachelor's thesis about extension of the board game hex

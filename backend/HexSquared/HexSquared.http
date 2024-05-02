@@ -1,0 +1,6 @@
+@HexSquared_HostAddress = http://localhost:5012
+
+GET {{HexSquared_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
