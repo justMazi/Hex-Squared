@@ -1,3 +1,7 @@
+.outer-hexagon:hover {
+  pointer-events: none;
+}
+
 .grid-wrapper {
   height: 100%;
 }
@@ -11,11 +15,6 @@ svg {
   fill: #979797;
   fill-opacity: 1;
 }
-
-g:hover {
-  fill: #971414;
-}
-
-.hexi {
-  fill: rgb(165, 165, 165);
+#inner-hexagon:hover {
+  fill: #149746;
 }
