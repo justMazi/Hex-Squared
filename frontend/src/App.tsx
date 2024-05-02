@@ -1,12 +1,11 @@
 import "./App.css";
 import Grid from "./Grid";
+import Title from "./Title";
 
 function App() {
   return (
     <>
-      <h1>
-        Hex<sup>2</sup>
-      </h1>
+      <Title></Title>
       <Grid></Grid>
     </>
   );
