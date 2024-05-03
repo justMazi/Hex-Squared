@@ -3,10 +3,12 @@
 }
 
 .grid-wrapper {
+  padding-top: 3em;
   height: 100%;
   max-width: 100vw;
   max-height: 100vw;
 }
+
 .grid {
   height: 80%;
 }
@@ -14,9 +16,4 @@
 svg {
   width: 100%;
   height: 100%;
-  fill: #979797;
-  fill-opacity: 1;
-}
-#inner-hexagon:hover {
-  fill: #3b1497;
 }

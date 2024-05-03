@@ -1,9 +1,7 @@
-import "./Title.css";
-
 function Title() {
   return (
     <>
-      <h1>
+      <h1 className="pt-16 select-none">
         Hex<sup>2</sup>
       </h1>
     </>
