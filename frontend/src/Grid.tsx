@@ -4,12 +4,11 @@ import "./Grid.css";
 
 const gridSize = 10;
 const playerColors = ["#3ebb40", "#c03030", "#2f43b0"];
+const hexagonSize = { x: 3, y: 3 };
+const hexagons = GridGenerator.hexagon(gridSize);
+const outerHexagons = GridGenerator.ring({ q: 0, r: 0, s: 0 }, gridSize);
 
 function Grid() {
-  const hexagonSize = { x: 3, y: 3 };
-  const hexagons = GridGenerator.hexagon(gridSize);
-  const outerHexagons = GridGenerator.ring({ q: 0, r: 0, s: 0 }, gridSize);
-
   const [innerHexagons, setInnerHexagons] = useState(
     hexagons.map((hex) => ({ hex, color: "#b0b0b0" }))
   );
@@ -39,8 +38,8 @@ function Grid() {
 
   return (
     <>
-      <div className="grid-wrapper">
-        <HexGrid>
+      <div className="pt-[3em] h-[100%] w-max-[100vw] h-max-[100vw]">
+        <HexGrid className="h-[80%]">
           <Layout
             size={hexagonSize}
             flat={false}
@@ -49,12 +48,11 @@ function Grid() {
           >
             {innerHexagons.map((item, index) => (
               <Hexagon
-                id="inner-hexagon"
+                className="hover:fill-rose-700 fill-[#4e2020]"
                 key={index}
                 q={item.hex.q}
                 r={item.hex.r}
                 s={item.hex.s}
-                style={{ fill: item.color }}
                 onClick={() => handleHexClick(item.hex)}
               />
             ))}
@@ -67,7 +65,6 @@ function Grid() {
           >
             {outerHexagons.map((hex, index) => (
               <Hexagon
-                id="outer-hexagon"
                 key={index}
                 q={hex.q}
                 r={hex.r}
