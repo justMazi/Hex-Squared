@@ -17,6 +17,6 @@ public class Hex
     public int Index { get; init; }
     
     [Required]
-    [EnumDataType(typeof(Player))]
+    [EnumDataType(typeof(PlayerEnum))]
     public int Player { get; init; }
 }

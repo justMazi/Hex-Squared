@@ -40,7 +40,7 @@ app.UseRouting();
 
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapHub<WebsocketHub>("/websockets");
+    endpoints.MapHub<WebSocketHub>("/websockets");
 });
 
 app.Run();

@@ -1,6 +1,6 @@
 ﻿namespace HexSquared;
 
-public enum Player
+public enum PlayerEnum
 {
     None,
     Player1,

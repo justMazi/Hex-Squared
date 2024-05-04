@@ -18,8 +18,6 @@ public class Hex
     public int Q { get; }
     public int Index { get; }
     public int Player { get; private set; }
-
-    public string Color { get; private set; } = Colors.NoneColor;
     
     public void SetPlayer(int player)
     {

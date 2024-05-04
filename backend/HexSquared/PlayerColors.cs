@@ -4,15 +4,15 @@ namespace HexSquared;
 
 public static class Colors
 {
-    public static string PlayerToColor(Player player)
+    public static string PlayerToColor(PlayerEnum playerEnum)
     {
-        return player switch
+        return playerEnum switch
         {
-            Player.None => NoneColor,   // Non taken field gray color
-            Player.Player1 => Player1Color,
-            Player.Player2 => Player2Color,
-            Player.Player3 => Player3Color,
-            _ => throw new ArgumentOutOfRangeException(nameof(player), player, null)
+            PlayerEnum.None => NoneColor,   // Non taken field gray color
+            PlayerEnum.Player1 => Player1Color,
+            PlayerEnum.Player2 => Player2Color,
+            PlayerEnum.Player3 => Player3Color,
+            _ => throw new ArgumentOutOfRangeException(nameof(playerEnum), playerEnum, null)
         };
     }
 

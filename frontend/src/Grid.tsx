@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { GridGenerator, HexGrid, Layout, Hexagon, Hex } from "react-hexgrid";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import "./Grid.css";
+import { FaRobot } from "react-icons/fa";
 
 const gridSize = 10;
 const outterColors = ["#b0b0b0", "#2c802e", "#932929", "#273586"];
-const playerColors = ["#b0b0b0", "#38a43a", "#b32e2e", "#3445a7"];
+const playerColors = ["#b0b0b0", "#38a43a", "#b32e2e", "#4a5fd6"];
 const hexagonSize = { x: 3, y: 3 };
 const outerHexagons = GridGenerator.ring({ q: 0, r: 0, s: 0 }, gridSize);
 
@@ -68,6 +69,21 @@ function Grid() {
       });
   };
 
+  const FillWithAiPlayers = () => {
+    const connection = new HubConnectionBuilder()
+      .withUrl("http://localhost:5012/websockets")
+      .withAutomaticReconnect()
+      .build();
+    connection
+      .start()
+      .then(() => {
+        connection.invoke("FillWithAiPlayers");
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  };
+
   const SendMove = (hex: HexagonData) => {
     const connection = new HubConnectionBuilder()
       .withUrl("http://localhost:5012/websockets")
@@ -101,19 +117,37 @@ function Grid() {
 
   return (
     <>
-      {IAM === 0 && (
-        <>
-          {gameState.FreeColors.map((colorNum) => (
+      <div className="flex justify-center">
+        {gameState.FreeColors.length > 0 && (
+          <>
+            {[1, 2, 3].map((colorNum) => (
+              <button
+                key={colorNum}
+                className="flex m-1"
+                style={{ backgroundColor: playerColors[colorNum] }}
+                onClick={() => SelectColor(colorNum)}
+                disabled={!gameState.FreeColors.includes(colorNum)}
+              >
+                Player {colorNum}
+              </button>
+            ))}
+          </>
+        )}
+
+        {gameState.FreeColors.length > 0 && (
+          <>
             <button
-              className="m-1"
-              style={{ backgroundColor: playerColors[colorNum] }}
-              onClick={() => SelectColor(colorNum)}
+              className="w-max-[100px] m-1 bg-gray-400 flex items-center"
+              onClick={() => FillWithAiPlayers()}
             >
-              Player {colorNum}
+              <FaRobot className="w-6 pr-1" />{" "}
+              {/* Added margin to separate icon from text */}
+              Fill with AI
             </button>
-          ))}
-        </>
-      )}
+          </>
+        )}
+      </div>
+
       <div className="pt-[3em] h-[100%] w-max-[100vw] h-max-[100vw]">
         <HexGrid className="h-[80%]">
           <Layout
