@@ -8,7 +8,7 @@ public class Game
     }
 
     public List<Hex> hexagons;
-    
+    public List<int> freeColors = [1,2,3];
     private static List<Hex> GenerateInnerHexagonCoordinates(int radius = 10)
     {
         List<Hex> coordinates = new List<Hex>();

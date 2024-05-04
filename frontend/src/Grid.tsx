@@ -4,10 +4,11 @@ import { HubConnectionBuilder } from "@microsoft/signalr";
 import "./Grid.css";
 
 const gridSize = 10;
-const playerColors = ["#b0b0b0", "#3ebb40", "#c03030", "#2f43b0"];
+const outterColors = ["#b0b0b0", "#2c802e", "#932929", "#273586"];
+const playerColors = ["#b0b0b0", "#38a43a", "#b32e2e", "#3445a7"];
 const hexagonSize = { x: 3, y: 3 };
-let IAM = 1;
 const outerHexagons = GridGenerator.ring({ q: 0, r: 0, s: 0 }, gridSize);
+
 interface HexagonData {
   R: number;
   S: number;
@@ -15,9 +16,19 @@ interface HexagonData {
   Index: number;
   Player: number;
 }
+interface GameState {
+  Hexagons: HexagonData[];
+  FreeColors: number[];
+}
+
+const initialGameState: GameState = {
+  Hexagons: [],
+  FreeColors: [],
+};
 
 function Grid() {
-  const [innerHexagons, setInnerHexagons] = useState<HexagonData[]>([]);
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [IAM, setIAM] = useState(0);
 
   useEffect(() => {
     const connection = new HubConnectionBuilder()
@@ -37,9 +48,25 @@ function Grid() {
 
     connection.on("GetState", (message) => {
       let jsonMessage = JSON.parse(message);
-      setInnerHexagons(jsonMessage);
+      setGameState(jsonMessage);
     });
   }, []);
+
+  const SelectColor = (playerNum: number) => {
+    setIAM(playerNum);
+    const connection = new HubConnectionBuilder()
+      .withUrl("http://localhost:5012/websockets")
+      .withAutomaticReconnect()
+      .build();
+    connection
+      .start()
+      .then(() => {
+        connection.invoke("SelectColor", playerNum);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  };
 
   const SendMove = (hex: HexagonData) => {
     const connection = new HubConnectionBuilder()
@@ -66,27 +93,27 @@ function Grid() {
     ) {
       return "#808080";
     }
-    if (Math.abs(hex.q) === gridSize) return playerColors[1];
-    if (Math.abs(hex.r) === gridSize) return playerColors[2];
-    if (Math.abs(hex.s) === gridSize) return playerColors[3];
+    if (Math.abs(hex.q) === gridSize) return outterColors[1];
+    if (Math.abs(hex.r) === gridSize) return outterColors[2];
+    if (Math.abs(hex.s) === gridSize) return outterColors[3];
     return "#b0b0b0";
   };
 
   return (
     <>
-      <button className="bg-gray-300 m-1" onClick={() => (IAM = 1)}>
-        Player 1
-      </button>
-      <button className="bg-gray-300 m-1" onClick={() => (IAM = 2)}>
-        Player 2
-      </button>
-      <button className="bg-gray-300 m-1" onClick={() => (IAM = 3)}>
-        Player 3
-      </button>
-      <button className="bg-gray-300 m-1" onClick={() => (IAM = 0)}>
-        Spectator
-      </button>
-
+      {IAM === 0 && (
+        <>
+          {gameState.FreeColors.map((colorNum) => (
+            <button
+              className="m-1"
+              style={{ backgroundColor: playerColors[colorNum] }}
+              onClick={() => SelectColor(colorNum)}
+            >
+              Player {colorNum}
+            </button>
+          ))}
+        </>
+      )}
       <div className="pt-[3em] h-[100%] w-max-[100vw] h-max-[100vw]">
         <HexGrid className="h-[80%]">
           <Layout
@@ -95,7 +122,7 @@ function Grid() {
             spacing={1.05}
             origin={{ x: 0, y: 0 }}
           >
-            {innerHexagons.map((hex, index) => (
+            {gameState.Hexagons.map((hex, index) => (
               <Hexagon
                 key={index}
                 q={hex.Q}
