@@ -30,27 +30,40 @@ const initialGameState: GameState = {
 function Grid() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [IAM, setIAM] = useState(0);
+  const [connection, setConnection] = useState<any>(null); // Store the connection
 
   useEffect(() => {
-    const connection = new HubConnectionBuilder()
+    const hubConnection = new HubConnectionBuilder()
       .withUrl("http://localhost:5012/websockets")
       .withAutomaticReconnect()
       .build();
 
-    connection
+    hubConnection
       .start()
       .then(() => {
         console.log("SignalR connection established");
-        connection.invoke("GetState");
+        hubConnection.invoke("GetState");
+        setConnection(hubConnection); // Store the connection once it's established
       })
       .catch((err) => {
         console.error(err.toString());
       });
 
-    connection.on("GetState", (message) => {
-      let jsonMessage = JSON.parse(message);
-      setGameState(jsonMessage);
+    hubConnection.on("GetState", (message) => {
+      try {
+        const jsonMessage = JSON.parse(message);
+        setGameState(jsonMessage);
+      } catch (error) {
+        console.error("Error parsing JSON:", error);
+      }
     });
+
+    return () => {
+      // Clean up the connection when the component unmounts
+      if (connection) {
+        connection.stop();
+      }
+    };
   }, []);
 
   const SelectColor = (playerNum: number) => {

@@ -25,7 +25,7 @@ public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
         {
             // here will be plugged in async fetch from a model that will decide the next move
             var index = GetRandomNonReservedIndexNumber(game);
-            Console.WriteLine(index);
+            // Console.WriteLine(index);
             if (index == -1) return;
             if (game.TryMove(game._currentMovePlayerIndex, index))
             {
@@ -33,6 +33,10 @@ public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
                 await GetState();
             }
         }    
+        Console.WriteLine("=========");
+
+        await GetState();
+
     }
 
     private int GetRandomNonReservedIndexNumber(Game game)
@@ -46,7 +50,7 @@ public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
     public record GameState(List<Hex> Hexagons, List<int> FreeColors);
     public async Task GetState()
     {
-        Console.WriteLine("GETSTATE EVENT CALLED");
+        // Console.WriteLine("GETSTATE EVENT CALLED");
         var state = runningGamesContainer.GetState();
         var gameState = new GameState(state.Hexagons, state.NonReservedColors);
         var game = JsonSerializer.Serialize(gameState);
@@ -55,7 +59,7 @@ public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
     
     public async Task SelectColor(int number)
     {
-        Console.WriteLine("SelectColor EVENT CALLED");
+        // Console.WriteLine("SelectColor EVENT CALLED");
         var game = runningGamesContainer.GetState();
         game.ReserveColor(number, false);
         await GetState();
@@ -70,7 +74,7 @@ public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
         }
         await GetState();
         
-        Console.WriteLine("FillWithAiPlayers EVENT CALLED");
+        // Console.WriteLine("FillWithAiPlayers EVENT CALLED");
         await RunAiMoves(game);
     }
 }
