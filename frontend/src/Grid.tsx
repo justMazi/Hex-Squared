@@ -3,6 +3,7 @@ import { GridGenerator, HexGrid, Layout, Hexagon, Hex } from "react-hexgrid";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import "./Grid.css";
 import { FaRobot } from "react-icons/fa";
+import { GameStartDialog } from "./StartDialogue";
 
 const gridSize = 10;
 const outterColors = ["#b0b0b0", "#2c802e", "#932929", "#273586"];
@@ -146,7 +147,7 @@ function Grid() {
             ))}
           </>
         )}
-
+        {GameStartDialog()}
         {gameState.FreeColors.length > 0 && (
           <>
             <button
