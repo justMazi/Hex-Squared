@@ -1,12 +1,13 @@
 ﻿namespace HexSquared;
 
-public class Game
+public class Game(string gameCode)
 {
     public IPlayer[] Players = new IPlayer[3];
     public readonly List<Hex> Hexagons = GameHelpers.GenerateInnerHexagonCoordinates();
     public readonly List<int> NonReservedColors = [1,2,3];
     public CurrentMovePlayerIndex _currentMovePlayerIndex = new(1);
     public State State = State.PlayerGather;
+    public readonly string GameCode = gameCode;
 
     public bool TryMove(int player, int index)
     {

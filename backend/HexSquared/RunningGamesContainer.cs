@@ -6,8 +6,8 @@ public class RunningGamesContainer
 {
     private ConcurrentDictionary<string, Game> Games { get; set; } = new();
 
-    public Game GetState(string gameCode = "abc")
+    public Game GetState(string gameCode)
     {
-        return Games.GetOrAdd("abc", new Game());
+        return Games.GetOrAdd(gameCode, new Game(gameCode));
     }
 }

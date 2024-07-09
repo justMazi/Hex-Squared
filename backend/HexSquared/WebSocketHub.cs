@@ -6,13 +6,13 @@ namespace HexSquared;
 
 public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
 {
-    public async Task Move(string message)
+    public async Task Move(string message, string gameCode)
     {
         var clickedHex = JsonSerializer.Deserialize<Dto.Hex>(message);
-        var game = runningGamesContainer.GetState();
+        var game = runningGamesContainer.GetState(gameCode);
         if (game.TryMove(clickedHex.Player, clickedHex.Index))
         {
-            await GetState();
+            await GetState(game.GameCode);
         }
         Console.WriteLine("MOVE EVENT CALLED");
 
@@ -30,12 +30,12 @@ public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
             if (game.TryMove(game._currentMovePlayerIndex, index))
             {
                 Console.WriteLine($"ai move to index {index}");
-                await GetState();
+                await GetState(game.GameCode);
             }
         }    
         Console.WriteLine("=========");
 
-        await GetState();
+        await GetState(game.GameCode);
 
     }
 
@@ -47,32 +47,32 @@ public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
         return nonTakenHexagons[random].Index;
     }
     
-    public record GameState(List<Hex> Hexagons, List<int> FreeColors);
-    public async Task GetState()
+    public record GameState(List<Hex> Hexagons, List<int> FreeColors, string GameCode);
+    public async Task GetState(string gameName)
     {
         // Console.WriteLine("GETSTATE EVENT CALLED");
-        var state = runningGamesContainer.GetState();
-        var gameState = new GameState(state.Hexagons, state.NonReservedColors);
+        var state = runningGamesContainer.GetState(gameName);
+        var gameState = new GameState(state.Hexagons, state.NonReservedColors, state.GameCode);
         var game = JsonSerializer.Serialize(gameState);
         await Clients.All.SendAsync("GetState", game);
     }
     
-    public async Task SelectColor(int number)
+    public async Task SelectColor(int number, string gameName)
     {
         // Console.WriteLine("SelectColor EVENT CALLED");
-        var game = runningGamesContainer.GetState();
+        var game = runningGamesContainer.GetState(gameName);
         game.ReserveColor(number, false);
-        await GetState();
+        await GetState(gameName);
     }    
     
-    public async Task FillWithAiPlayers()
+    public async Task FillWithAiPlayers(string gameName)
     {
-        var game = runningGamesContainer.GetState();
+        var game = runningGamesContainer.GetState(gameName);
         foreach (var colorNum in game.NonReservedColors.ToArray())
         {
             game.ReserveColor(colorNum, true);
         }
-        await GetState();
+        await GetState(gameName);
         
         // Console.WriteLine("FillWithAiPlayers EVENT CALLED");
         await RunAiMoves(game);
