@@ -266,7 +266,7 @@ function Grid() {
           </div>
         </Dialog>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open}>
           <div className={`${open ? "backdrop-blur-sm fixed inset-0" : ""}`}>
             <DialogContent className="sm:max-w-md mx-auto my-16">
               <DialogHeader>
