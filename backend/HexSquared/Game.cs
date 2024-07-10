@@ -92,21 +92,45 @@ public class Game(string gameCode, int radius = 9)
         return false;
     }
     
+
     private bool IsStartingEdge(Hex hex, int player)
     {
-        // Define the starting edge condition for the player
-        // Example: left edge for player 1, top edge for player 2
-        // Adjust this logic based on your game rules
-        return hex.R == -Radius;
+        // Define the starting edge condition for different players
+        switch (player)
+        {
+            case 1:
+                // Player 1 starts on the left edge (q == -radius)
+                return hex.Q == -radius;
+            case 2:
+                // Player 2 starts on the top edge (r == -radius)
+                return hex.R == -radius;
+            case 3:
+                // Player 3 starts on the top-right edge (s == -radius)
+                return hex.S == -radius;
+            default:
+                throw new ArgumentException("Invalid player number");
+        }
     }
 
     private bool IsOppositeEdge(Hex hex, int player)
     {
-        // Define the opposite edge condition for the player
-        // Example: right edge for player 1, bottom edge for player 2
-        // Adjust this logic based on your game rules
-        return hex.R == Radius;
+        // Define the opposite edge condition for different players
+        switch (player)
+        {
+            case 1:
+                // Player 1 needs to connect to the right edge (q == radius)
+                return hex.Q == radius;
+            case 2:
+                // Player 2 needs to connect to the bottom edge (r == radius)
+                return hex.R == radius;
+            case 3:
+                // Player 3 needs to connect to the bottom-left edge (s == radius)
+                return hex.S == radius;
+            default:
+                throw new ArgumentException("Invalid player number");
+        }
     }
+
 
     private IEnumerable<Hex> GetNeighbors(Hex hex)
     {
