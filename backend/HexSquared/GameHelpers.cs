@@ -2,7 +2,7 @@
 
 public static class GameHelpers
 {
-    public static List<Hex> GenerateInnerHexagonCoordinates(int radius = 9)
+    public static List<Hex> GenerateInnerHexagonCoordinates(int radius)
     {
         List<Hex> coordinates = new List<Hex>();
         var index = 0;

@@ -10,4 +10,11 @@ public class RunningGamesContainer
     {
         return Games.GetOrAdd(gameCode, new Game(gameCode));
     }
+    
+    public void RestartGame(string gameCode)
+    {
+        var game = new Game(gameCode);
+        Games[gameCode] = game;
+        game.State = State.InProgress;
+    }
 }

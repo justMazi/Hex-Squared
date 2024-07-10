@@ -12,6 +12,13 @@ public class WebSocketHub(RunningGamesContainer runningGamesContainer) : Hub
         var game = runningGamesContainer.GetState(gameCode);
         if (game.TryMove(clickedHex.Player, clickedHex.Index))
         {
+            var res = game.CheckWin(clickedHex.Player);
+            if (res)
+            {
+                await Clients.All.SendAsync("Winner", clickedHex.Player);
+                runningGamesContainer.RestartGame(gameCode);
+                await GetState(game.GameCode);
+            }
             await GetState(game.GameCode);
         }
         Console.WriteLine("MOVE EVENT CALLED");

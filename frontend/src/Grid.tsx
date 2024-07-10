@@ -25,6 +25,7 @@ const outterColors = ["#b0b0b0", "#2c802e", "#932929", "#273586"];
 const playerColors = ["#b0b0b0", "#38a43a", "#b32e2e", "#4a5fd6"];
 const hexagonSize = { x: 3, y: 3 };
 const outerHexagons = GridGenerator.ring({ q: 0, r: 0, s: 0 }, gridSize);
+const playerNumbers = [1, 2, 3];
 
 interface HexagonData {
   R: number;
@@ -48,7 +49,9 @@ const initialGameState: GameState = {
 function Grid() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [IAM, setIAM] = useState(0);
+  const [isLocal, setIsLocal] = useState<boolean>(false);
   const [connection, setConnection] = useState<any>(null); // Store the connection
+  const [winner, setWinner] = useState(0); // Store the connection
 
   useEffect(() => {
     const hubConnection = new HubConnectionBuilder()
@@ -75,6 +78,21 @@ function Grid() {
         setGameState(jsonMessage);
       } catch (error) {
         console.error("Error parsing JSON:", error);
+      }
+    });
+
+    hubConnection.on("Winner", (player) => {
+      try {
+        setWinner(player);
+        setIsWinDialogueOpen(true);
+        console.log(gameState);
+        console.log(player);
+        console.log(IAM);
+        console.log(isLocal);
+        if (isLocal) {
+        }
+      } catch (error) {
+        console.error("Error setting winner:", error);
       }
     });
 
@@ -118,6 +136,7 @@ function Grid() {
   };
 
   const SendMove = (hex: HexagonData) => {
+    if (hex.Player !== 0) return;
     const connection = new HubConnectionBuilder()
       .withUrl("http://localhost:5012/websockets")
       .withAutomaticReconnect()
@@ -128,7 +147,13 @@ function Grid() {
       .then(() => {
         console.log("SignalR connection established");
         connection.invoke("Move", JSON.stringify(hex), gameState.GameCode);
+
+        // if game is played locally, switch the player after move
+        if (isLocal) {
+          setIAM((IAM % 3) + 1);
+        }
       })
+
       .catch((err) => {
         console.error(err);
       });
@@ -158,6 +183,7 @@ function Grid() {
   };
 
   const [open, setOpen] = React.useState(gameState.GameCode == "");
+  const [isWinDialogueOpen, setIsWinDialogueOpen] = React.useState(false);
   const [link, _] = React.useState(generateLink());
 
   const copyToClipboard = () => {
@@ -165,9 +191,26 @@ function Grid() {
   };
 
   const locally = () => {
-    window.location.href = link;
-    setOpen(false);
+    // change url without full reload
+    window.history.pushState(null, "", link);
     gameState.GameCode = link;
+
+    playerNumbers.map((num) => {
+      connection.invoke("SelectColor", num, gameState.GameCode);
+    });
+    setIAM(1);
+    setIsLocal(true);
+    setOpen(false);
+    connection.invoke("GetState", gameState.GameCode);
+  };
+
+  const overInternet = () => {
+    // change url without full reload
+    window.history.pushState(null, "", link);
+    gameState.GameCode = link;
+
+    setIsLocal(false);
+    setOpen(false);
     connection.invoke("GetState", gameState.GameCode);
   };
 
@@ -176,7 +219,7 @@ function Grid() {
       <div className="flex justify-center">
         {gameState.FreeColors.length > 0 && (
           <>
-            {[1, 2, 3].map((colorNum) => (
+            {playerNumbers.map((colorNum) => (
               <button
                 key={colorNum}
                 className="flex m-1"
@@ -189,6 +232,40 @@ function Grid() {
             ))}
           </>
         )}
+        <Dialog
+          open={isWinDialogueOpen}
+          onOpenChange={() => {
+            window.location.href = "/";
+          }}
+        >
+          <div
+            className={`${
+              isWinDialogueOpen ? "backdrop-blur-sm fixed inset-0" : ""
+            }`}
+          >
+            <DialogContent className="sm:max-w-md mx-auto my-16">
+              <DialogHeader>
+                <DialogTitle
+                  style={{ color: playerColors[winner], fontSize: "2.5rem" }}
+                >
+                  Player {winner} won!
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col space-y-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => (window.location.href = "/")}
+                >
+                  Play again
+                </Button>
+              </div>
+              <DialogFooter className="sm:justify-start">
+                <DialogClose asChild></DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </div>
+        </Dialog>
+
         <Dialog open={open} onOpenChange={setOpen}>
           <div className={`${open ? "backdrop-blur-sm fixed inset-0" : ""}`}>
             <DialogContent className="sm:max-w-md mx-auto my-16">
@@ -203,7 +280,6 @@ function Grid() {
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col space-y-4">
-                {" "}
                 <div className="flex items-center space-x-2">
                   <div className="grid flex-1 gap-2">
                     <Label htmlFor="link" className="sr-only">
@@ -224,7 +300,7 @@ function Grid() {
                 <Button variant="secondary" onClick={locally}>
                   Locally
                 </Button>
-                <Button variant="secondary" onClick={generateLink}>
+                <Button variant="secondary" onClick={overInternet}>
                   Over Internet
                 </Button>
               </div>
