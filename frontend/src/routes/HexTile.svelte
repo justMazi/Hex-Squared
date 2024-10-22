@@ -34,7 +34,7 @@
 	class="cursor-pointer transition duration-300"
 >
 	<polygon
-		class={`rotate-90 stroke-gray-700 transition ${hoverColor || hexColor}`}
+		class={`rotate-90 stroke-white stroke-2 transition ${hoverColor || hexColor}`}
 		points="
         {hexSize * Math.cos(0)}, {hexSize * Math.sin(0)}
         {hexSize * Math.cos(Math.PI / 3)}, {hexSize * Math.sin(Math.PI / 3)}
