@@ -1,46 +1,45 @@
-using HexSquared;
+using Logging;
+using Serilog;
+using LoggerConfigurationExtensions = Logging.LoggerConfigurationExtensions;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace HexSquared;
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddSignalR();
-builder.Services.AddSingleton<RunningGamesContainer>();
-builder.Services.AddCors(options =>
+public static class Program
 {
-    options.AddPolicy("AllowAll",
-        builder =>
+    public static int Main()
+    {
+        const string appName = "HexSquared Backend Server";
+
+        try
         {
-            builder.AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-        });
-});
+            // Console logging for used for troubleshooting before getting all required info for logger
+            LoggerConfigurationExtensions.SetupLoggerConfiguration();
 
-var app = builder.Build();
+            Log.Information("Starting web host {AppName}", appName);
+            CreateHostBuilder().Build().Run();
+            Log.Information("Ending web host {AppName}", appName);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Host terminated unexpectedly {AppName}", appName);
+            return 1;
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
 
-app.UseCors(x => x
-    .AllowAnyMethod()
-    .AllowAnyHeader()
-    .SetIsOriginAllowed(origin => true)
-    .AllowCredentials());
+    private static IHostBuilder CreateHostBuilder()
+    {
+        return Host.CreateDefaultBuilder().UseSerilog((_, _, loggerConfiguration) =>
+            {
+                loggerConfiguration.ConfigureBaseLogging();
+                // here add cloud logging (AppInsights for Azure, AWS something....)
+            })
+            .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); });
+    }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
-app.UseRouting();
-
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapHub<WebSocketHub>("/websockets");
-});
-
-app.Run();

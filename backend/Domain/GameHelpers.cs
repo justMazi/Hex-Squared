@@ -1,10 +1,11 @@
-﻿namespace HexSquared;
+﻿namespace Domain;
 
 public static class GameHelpers
 {
     public static List<Hex> GenerateInnerHexagonCoordinates(int radius)
     {
-        List<Hex> coordinates = new List<Hex>();
+        radius++;
+        List<Hex> coordinates = new();
         var index = 0;
         for (int r = -radius; r <= radius; r++)
         {
