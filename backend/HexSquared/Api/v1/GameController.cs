@@ -4,6 +4,7 @@ using Application.IRepositories;
 using Application.Services.Interfaces;
 using Domain;
 using Domain.Players;
+using LanguageExt;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HexSquared.Api.v1;
@@ -38,8 +39,9 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
             }
             else
             {
-                // caller has a cookie referencing some other game
-                GameService.Get(new GameId(id)).Match(existingGame =>
+                GameService.Get(new GameId(id)).Match(
+                    // caller has a cookie referencing some other game, that may or may not exist
+                    existingGame =>
                     {
                         if (existingGame.GameState == GameState.InProgress)
                         {
@@ -54,7 +56,7 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
                             existingGame.UnpickColor(color);
                         }
                     },
-                    () => {}
+                    () => { HttpContext.Response.Cookies.Delete("hex_session");}
                 );
             }
         }
@@ -77,5 +79,31 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
             },
             None: () => BadRequest("Color already taken.")
         );
+    }
+    
+    [HttpPost("game/{id}/move")]
+    public IActionResult Move(string id, [FromQuery] int index)
+    {
+        var gameId = new GameId(id);
+        var game = GameService.GetOrCreate(gameId);
+
+        HttpContext.Request.Cookies.TryGetValue("hex_session", out var session);
+
+        var moveResult = ExtractSession(session).BiBind(
+            data => game.Move(new HumanPlayer(data.PlayerNumber), index),
+            () => Option<Game>.None
+        );
+
+        if (!moveResult.IsSome) return BadRequest("Couldn't perform the move.");
+        
+        GameRepository.SaveGame(game);
+        return Ok();
+    }
+    
+    private Option<SessionCookieData> ExtractSession(string? session)
+    {
+        if( session is null ) return Option<SessionCookieData>.None;
+        var jsonData = Encoding.UTF8.GetString(Convert.FromBase64String(session));
+        return JsonSerializer.Deserialize<SessionCookieData>(jsonData);
     }
 }

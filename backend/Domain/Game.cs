@@ -51,7 +51,7 @@ public record Game(
         });    
     }
 
-    public Option<Game> TryMove(IPlayer player, int index)
+    public Option<Game> Move(IPlayer player, int index)
     {
         if (GameState is not GameState.InProgress || player.PlayerNum != CurrentMovePlayerIndex.Value)
             return None;
