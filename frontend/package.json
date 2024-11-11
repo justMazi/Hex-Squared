@@ -51,6 +51,7 @@
 		"echarts": "^5.5.1",
 		"gridstack": "^10.3.1",
 		"layerchart": "^0.44.0",
+		"lucide": "^0.456.0",
 		"lucide-svelte": "^0.438.0",
 		"mode-watcher": "^0.4.1",
 		"recharts": "^2.12.7",

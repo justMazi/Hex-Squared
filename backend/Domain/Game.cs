@@ -16,7 +16,7 @@ public record Game(
         : this(
             id,
             Players: new IPlayer[3],
-            Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(11),
+            Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(10),
             CurrentMovePlayerIndex: new CurrentMovePlayerIndex(),
             GameState: GameState.WaitingForPlayers)
     {

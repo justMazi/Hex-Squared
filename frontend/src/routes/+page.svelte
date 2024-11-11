@@ -1,65 +1,81 @@
-<script>
-	import HexTile from './HexTile.svelte';
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '$lib/components/ui/card';
+	import { Copy, Dice6 } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
 
-	const radius = 11;
-	const hexSize = 30;
-	let currentPlayer = 'none'; // This can be bound to a cookie or app state
+	let gameCode = generateGameCode();
+	let link: string | null = null;
 
-	// Generate axial coordinates for the grid
-	function generateHexGrid(radius) {
-		let hexes = [];
-		for (let q = -radius; q <= radius; q++) {
-			const r1 = Math.max(-radius, -q - radius);
-			const r2 = Math.min(radius, -q + radius);
-			for (let r = r1; r <= r2; r++) {
-				const s = -q - r;
-				const isEdge = Math.abs(q) === radius || Math.abs(r) === radius || Math.abs(s) === radius;
-				hexes.push({ q, r, s, isEdge });
-			}
+	onMount(() => {
+		if (typeof window !== 'undefined') {
+			link = `${window.location.origin}/${gameCode}`;
 		}
-		return hexes;
+	});
+
+	const copyToClipboard = () => {
+		if (link) navigator.clipboard.writeText(link);
+	};
+
+	function generateGameCode() {
+		return Math.random().toString(36).substring(2, 8);
 	}
 
-	let hexGrid = generateHexGrid(radius);
+	function regenerateGameCode() {
+		gameCode = generateGameCode();
+		if (typeof window !== 'undefined') {
+			link = `${window.location.origin}/${gameCode}`;
+		}
+	}
 </script>
 
-<div class="h-[100vh] w-[100vw]">
-	<!-- The SVG will now fill the div and resize accordingly -->
-	<svg
-		class="svg-hex responsive-svg"
-		viewBox="-750 -750 1500 1500"
-		preserveAspectRatio="xMidYMid meet"
-	>
-		{#each hexGrid as { q, r, s, isEdge }}
-			<HexTile {q} {r} {s} {hexSize} {isEdge} {currentPlayer} />
-		{/each}
-	</svg>
+<div class="flex min-h-screen items-center justify-center bg-gray-100">
+	<Card class="w-full max-w-md rounded-lg bg-white p-6 shadow-md">
+		<CardHeader>
+			<CardTitle class="text-lg font-semibold text-gray-800">Start Game</CardTitle>
+		</CardHeader>
+		<CardContent>
+			<div class="flex flex-col space-y-4 text-sm text-gray-700">
+				<p>Choose how you want to play the game.</p>
+				<p>You can always send the link to your friends for them to watch.</p>
+				<div class="flex items-center space-x-2">
+					<input
+						id="link"
+						type="text"
+						value={link}
+						disabled
+						class="flex-grow rounded-md border border-gray-300 px-3 py-2 text-gray-700"
+					/>
+					<Button
+						size="sm"
+						on:click={copyToClipboard}
+						aria-label="Copy Link"
+						class="bg-gray-800 text-white hover:bg-gray-700"
+					>
+						<Copy class="h-4 w-4" /> Copy
+					</Button>
+					<Button
+						size="sm"
+						on:click={regenerateGameCode}
+						aria-label="Regenerate Game Code"
+						class="bg-gray-800 text-white hover:bg-gray-700"
+					>
+						<Dice6 class="h-4 w-4" />
+					</Button>
+				</div>
+			</div>
+		</CardContent>
+		<CardFooter class="mt-4 flex space-x-2">
+			<!-- 
+            <Button variant="secondary" class="w-1/2 bg-gray-200 text-gray-800 hover:bg-gray-300"
+            >Locally</Button
+			>
+            -->
+			<Button
+				variant="secondary"
+				class="w-full bg-gray-200 text-gray-800 hover:bg-gray-300"
+				on:click={() => (window.location.href = link || '')}>Enter the game</Button
+			>
+		</CardFooter>
+	</Card>
 </div>
-
-<style>
-	.hex-container {
-		/* Makes the container fill its parent */
-		width: 100%;
-		height: 100%;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		position: relative;
-	}
-
-	.svg-hex {
-		/* Ensures the SVG will scale inside the container */
-		width: 100%;
-		height: 100%;
-		max-width: 100%;
-		max-height: 100%;
-	}
-
-	.responsive-svg {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-	}
-</style>

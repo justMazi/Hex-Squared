@@ -4,9 +4,7 @@
 	import { Toaster } from '$lib/components/ui/sonner';
 </script>
 
-<div class="flex">
-	<ModeWatcher />
-	<Toaster expand={true} position="top-center" />
+<ModeWatcher />
+<Toaster expand={true} position="top-center" />
 
-	<slot></slot>
-</div>
+<slot></slot>

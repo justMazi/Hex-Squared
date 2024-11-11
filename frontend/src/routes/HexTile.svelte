@@ -3,27 +3,20 @@
 	export let r;
 	export let s;
 	export let hexSize;
-	export let isEdge = false;
-	export let currentPlayer = 'none';
+	export let owner;
 
-	let hoverColor = '';
-
-	// Set hover color based on the current player
-	function handleMouseEnter() {
-		if (currentPlayer === 'player1') {
-			hoverColor = 'fill-red-400'; // Player 1 color
-		} else if (currentPlayer === 'player2') {
-			hoverColor = 'fill-green-400'; // Player 2 color
-		} else {
-			hoverColor = ''; // No player or reset
-		}
+	let hexColor;
+	if (owner === 1) {
+		hexColor = 'fill-red-600';
+	} else if (owner === 2) {
+		hexColor = 'fill-green-600';
+	} else if (owner === 3) {
+		hexColor = 'fill-blue-600';
+	} else if (q === 11 || r === 11 || s === 11) {
+		hexColor = 'fill-gray-500';
+	} else {
+		hexColor = 'fill-gray-300';
 	}
-
-	function handleMouseLeave() {
-		hoverColor = ''; // Reset hover color
-	}
-
-	$: hexColor = isEdge ? 'fill-blue-300' : 'fill-gray-300'; // Edge tiles will have a different color
 </script>
 
 <g
@@ -31,10 +24,9 @@
       {hexSize * Math.sqrt(3) * (q + r / 2)}, 
       {((hexSize * 3) / 2) * r}
     )"
-	class="cursor-pointer transition duration-300"
 >
 	<polygon
-		class={`rotate-90 stroke-white stroke-2 transition ${hoverColor || hexColor}`}
+		class="rotate-90 stroke-white stroke-2 {hexColor}"
 		points="
         {hexSize * Math.cos(0)}, {hexSize * Math.sin(0)}
         {hexSize * Math.cos(Math.PI / 3)}, {hexSize * Math.sin(Math.PI / 3)}
