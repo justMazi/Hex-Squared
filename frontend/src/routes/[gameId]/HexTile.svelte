@@ -4,19 +4,32 @@
 	export let s;
 	export let hexSize;
 	export let owner;
+	export let browserPlayer;
 
 	let hexColor;
-	if (owner === 1) {
-		hexColor = 'fill-red-600';
-	} else if (owner === 2) {
-		hexColor = 'fill-green-600';
-	} else if (owner === 3) {
-		hexColor = 'fill-blue-600';
-	} else if (q === 11 || r === 11 || s === 11) {
-		hexColor = 'fill-gray-500';
-	} else {
-		hexColor = 'fill-gray-300';
-	}
+	let hoverColor;
+
+	// Reactive statement to update hoverColor based on browserPlayer
+	$: hoverColor =
+		browserPlayer === 1
+			? 'hover:fill-red-300'
+			: browserPlayer === 2
+				? 'hover:fill-green-300'
+				: browserPlayer === 3
+					? 'hover:fill-blue-300'
+					: 'hover:fill-gray-400';
+
+	// Set initial hex color based on owner
+	$: hexColor =
+		owner === 1
+			? 'fill-red-600'
+			: owner === 2
+				? 'fill-green-600'
+				: owner === 3
+					? 'fill-blue-600'
+					: q === 11 || r === 11 || s === 11
+						? 'fill-gray-500'
+						: 'fill-gray-300';
 </script>
 
 <g
@@ -26,8 +39,8 @@
     )"
 >
 	<polygon
-		class="rotate-90 stroke-white stroke-2 {hexColor}"
-		points="
+		class="rotate-90 stroke-white stroke-2 {hexColor} {hoverColor}"
+		points=" 
         {hexSize * Math.cos(0)}, {hexSize * Math.sin(0)}
         {hexSize * Math.cos(Math.PI / 3)}, {hexSize * Math.sin(Math.PI / 3)}
         {hexSize * Math.cos((2 * Math.PI) / 3)}, {hexSize * Math.sin((2 * Math.PI) / 3)}

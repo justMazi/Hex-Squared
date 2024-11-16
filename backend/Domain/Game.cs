@@ -17,7 +17,7 @@ public record Game(
             id,
             Players: new IPlayer[3],
             Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(10),
-            CurrentMovePlayerIndex: new CurrentMovePlayerIndex(),
+            CurrentMovePlayerIndex: new CurrentMovePlayerIndex(0),
             GameState: GameState.WaitingForPlayers)
     {
     }
@@ -31,12 +31,15 @@ public record Game(
         if (updatedPlayers[color] is not null) return None;
         updatedPlayers[color] = player;
 
-        var newGameState = updatedPlayers.All(p => p != null) ? GameState.InProgress : GameState.WaitingForPlayers;
+        var isNoColorFree = updatedPlayers.All(p => p != null);
+        var newGameState = isNoColorFree ? GameState.InProgress : GameState.WaitingForPlayers;
+        var newIndex = new CurrentMovePlayerIndex(1);
 
         return Some(this with
         {
             Players = updatedPlayers,
-            GameState = newGameState
+            GameState = newGameState,
+            CurrentMovePlayerIndex = newIndex
         });
     }
 
