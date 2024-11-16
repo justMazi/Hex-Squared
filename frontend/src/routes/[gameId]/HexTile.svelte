@@ -8,7 +8,7 @@
 
 	let hexColor;
 	let hoverColor;
-
+	const fillColor = 'fill-gray-300';
 	// Reactive statement to update hoverColor based on browserPlayer
 	$: hoverColor =
 		browserPlayer === 1
@@ -17,7 +17,7 @@
 				? 'hover:fill-green-300'
 				: browserPlayer === 3
 					? 'hover:fill-blue-300'
-					: 'hover:fill-gray-400';
+					: 'hover:';
 
 	// Set initial hex color based on owner
 	$: hexColor =
@@ -29,17 +29,19 @@
 					? 'fill-blue-600'
 					: q === 11 || r === 11 || s === 11
 						? 'fill-gray-500'
-						: 'fill-gray-300';
+						: fillColor;
+
+	let isHoverable = owner === 0 && q != 11 && r != 11 && s != 11;
 </script>
 
 <g
 	transform="translate(
       {hexSize * Math.sqrt(3) * (q + r / 2)}, 
-      {((hexSize * 3) / 2) * r}
+      {((hexSize * 3) / 2) * r} 
     )"
 >
 	<polygon
-		class="rotate-90 stroke-white stroke-2 {hexColor} {hoverColor}"
+		class="rotate-90 stroke-white stroke-2 {hexColor} {isHoverable ? hoverColor : ''}"
 		points=" 
         {hexSize * Math.cos(0)}, {hexSize * Math.sin(0)}
         {hexSize * Math.cos(Math.PI / 3)}, {hexSize * Math.sin(Math.PI / 3)}

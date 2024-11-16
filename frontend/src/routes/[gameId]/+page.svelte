@@ -38,7 +38,6 @@
 			const data = await response.json();
 
 			game = data;
-			currentPlayer = data.currentMovePlayerIndex.value;
 
 			hexGrid = data.hexagons.map(({ q, r, s, owner, isTaken }) => ({
 				q,
@@ -54,8 +53,15 @@
 
 	// Change player color
 	function selectColor(color: number) {
-		currentPlayer = color;
-		console.log(`Player color changed to: ${color}`);
+		fetch(`http://localhost:5059/api/v1/game/${gameId}/pickColor?color=${color}`, {
+			method: 'POST'
+		})
+			.then((data) => {
+				currentPlayer = color;
+				console.log('Player color selected:', color);
+				fetchGameData(gameId); // Refresh game data
+			})
+			.catch((error) => console.error('Error selecting player color:', error));
 	}
 
 	function fillWithAI() {

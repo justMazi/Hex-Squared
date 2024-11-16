@@ -28,8 +28,8 @@ public record Game(
             return None;
 
         var updatedPlayers = Players.ToArray();
-        if (updatedPlayers[color] is not null) return None;
-        updatedPlayers[color] = player;
+        if (updatedPlayers[color-1] is not null) return None;
+        updatedPlayers[color-1] = player;
 
         var isNoColorFree = updatedPlayers.All(p => p != null);
         var newGameState = isNoColorFree ? GameState.InProgress : GameState.WaitingForPlayers;
