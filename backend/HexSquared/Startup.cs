@@ -1,3 +1,4 @@
+using Application;
 using Application.IRepositories;
 using Application.Services.Implementations;
 using Application.Services.Interfaces;
@@ -13,6 +14,7 @@ public class Startup(IConfiguration configuration)
     // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
     {
+        services.AddHostedService<AiPlayerService>();
         services.AddControllers();
         services.AddHealthChecks();
         services.AddSwaggerGen();

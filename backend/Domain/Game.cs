@@ -10,7 +10,8 @@ public record Game(
     IPlayer[] Players,
     IReadOnlyList<Hex> Hexagons,
     CurrentMovePlayerIndex CurrentMovePlayerIndex,
-    GameState GameState)
+    GameState GameState,
+    int? Winner = null)
 {
     public Game(GameId id)
         : this(
@@ -22,17 +23,36 @@ public record Game(
     {
     }
 
+    public Option<Game> FillWithAi()
+    {
+        if (GameState is not GameState.WaitingForPlayers)
+        {
+            return None;
+        }
+        
+        return this with
+        {
+            Players = Players
+                .Select((p, index) => p ?? new AiPlayer(index+1))
+                .ToArray(),
+            GameState = GameState.InProgress,
+            CurrentMovePlayerIndex = new CurrentMovePlayerIndex(1)
+        };
+    }
+
+    
     public Option<Game> PickColor(IPlayer player, int color)
     {
         if (!Players.Contains(null))
             return None;
 
         var updatedPlayers = Players.ToArray();
-        if (updatedPlayers[color-1] is not null) return None;
-        updatedPlayers[color-1] = player;
+        if (updatedPlayers[color - 1] is not null) return None;
+        updatedPlayers[color - 1] = player;
 
         var isNoColorFree = updatedPlayers.All(p => p != null);
         var newGameState = isNoColorFree ? GameState.InProgress : GameState.WaitingForPlayers;
+
         var newIndex = new CurrentMovePlayerIndex(1);
 
         return Some(this with
@@ -42,7 +62,7 @@ public record Game(
             CurrentMovePlayerIndex = newIndex
         });
     }
-
+    
     public Option<Game> UnpickColor(int color)
     {
         var updatedPlayers = Players.ToArray();
@@ -69,14 +89,17 @@ public record Game(
 
         var newPlayerIndex = CurrentMovePlayerIndex.Increment();
 
+        var won = TrySetWinState(player);
+        
         return Some(this with
         {
+            Winner = won.IsSome ? player.PlayerNum : null, 
             Hexagons = updatedHexagons,
             CurrentMovePlayerIndex = newPlayerIndex
         });
     }
-    
-    public Option<Game> TrySetWinState(IPlayer player)
+
+    private Option<Game> TrySetWinState(IPlayer player)
     {
         System.Collections.Generic.HashSet<Hex> visited = new();
         Queue<Hex> toVisit = new();
@@ -152,4 +175,6 @@ public record Game(
             }
         }
     }
+
+
 }

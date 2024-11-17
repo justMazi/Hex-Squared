@@ -108,6 +108,19 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
         return Ok();
     }
     
+    [HttpPost("game/{id}/fill-with-ai")]
+    public IActionResult FillWithAi(string id, [FromQuery] int index)
+    {
+        var gameId = new GameId(id);
+        var game = GameService.GetOrCreate(gameId);
+        var updatedGame = game.FillWithAi();
+        return updatedGame.Match<IActionResult>(game1 =>
+        {
+            GameRepository.SaveGame(game1);
+            return Ok();
+        }, BadRequest);
+    }
+    
     private Option<SessionCookieData> ExtractSession(string? session)
     {
         if( session is null ) return Option<SessionCookieData>.None;

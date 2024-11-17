@@ -4,6 +4,10 @@
 	import { page } from '$app/stores';
 	import { type SessionCookieData } from './SessionCookieData';
 	import { toast } from 'svelte-french-toast';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
 
 	const hexSize = 30;
 
@@ -14,6 +18,8 @@
 	let game: any = null;
 
 	let players = game?.players || [];
+	let winner = game?.winner || null;
+
 	export let sessionData: SessionCookieData;
 
 	// Extract game ID from URL
@@ -48,7 +54,7 @@
 
 		if (gameId) {
 			refreshGameData(gameId);
-			const interval = setInterval(() => refreshGameData(gameId), 2000);
+			const interval = setInterval(() => refreshGameData(gameId), 500);
 
 			// Properly register onDestroy
 			onDestroy(() => {
@@ -101,15 +107,40 @@
 
 	function fillWithAI() {
 		console.log('Filling remaining players with AI...');
-		fetch(`http://localhost:5059/api/v1/game/${gameId}/fill-ai`, { method: 'POST' })
+		fetch(`http://localhost:5059/api/v1/game/${gameId}/fill-with-ai`, { method: 'POST' })
 			.then((response) => response.json())
 			.then((data) => {
-				console.log('AI players added:', data);
+				toast.success('AI players added:', data);
 				refreshGameData(gameId!);
 			})
 			.catch((error) => console.error('Error filling AI players:', error));
 	}
 </script>
+
+<Dialog.Root open={winner != null}>
+	<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>Edit Profile</Dialog.Trigger>
+	<Dialog.Content class="sm:max-w-[425px]">
+		<Dialog.Header>
+			<Dialog.Title>Edit profile</Dialog.Title>
+			<Dialog.Description>
+				Make changes to your profile here. Click save when you're done.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="grid gap-4 py-4">
+			<div class="grid grid-cols-4 items-center gap-4">
+				<Label for="name" class="text-right">Name</Label>
+				<Input id="name" value="Pedro Duarte" class="col-span-3" />
+			</div>
+			<div class="grid grid-cols-4 items-center gap-4">
+				<Label for="username" class="text-right">Username</Label>
+				<Input id="username" value="@peduarte" class="col-span-3" />
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button type="submit">Save changes</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
 
 <div class="relative flex h-screen w-screen items-center justify-center">
 	<svg

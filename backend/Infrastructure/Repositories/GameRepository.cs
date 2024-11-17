@@ -2,6 +2,7 @@
 using Application;
 using Application.IRepositories;
 using Domain;
+using Domain.Players;
 using Infrastructure.Exceptions;
 using Serilog;
 
@@ -10,6 +11,12 @@ namespace Infrastructure.Repositories;
 public class GameRepository : IGameRepository
 {
     private ConcurrentDictionary<GameId, Game?> Games { get; set; } = new();
+
+    public List<Game?> GetAllInProgressGamesWithAi()
+    {
+        // gets all in progress games with at least one ai player
+        return Games.Values.Where(g => g.GameState == GameState.InProgress && g.Players.Any(p => p is AiPlayer)).ToList();
+    }
 
     public void SaveGame(Game game)
     {
