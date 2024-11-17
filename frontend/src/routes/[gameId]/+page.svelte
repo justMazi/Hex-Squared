@@ -7,14 +7,14 @@
 
 	const hexSize = 30;
 
-	$: currentPlayer = 0;
+	let currentPlayer: number | null = null;
 
 	let hexGrid = [];
-	let gameId;
-	let game;
+	let gameId: string | null = null;
+	let game: any = null;
 
-	export let sessionData: SessionCookieData | undefined = undefined;
-	currentPlayer = sessionData ? sessionData.PlayerNumber : 0;
+	let players = game?.players || [];
+	export let sessionData: SessionCookieData;
 
 	// Extract game ID from URL
 	$: {
@@ -23,23 +23,51 @@
 
 	// Fetch game data at intervals
 	onMount(() => {
+		const cookieString = document.cookie;
+		const cookies = Object.fromEntries(
+			cookieString.split('; ').map((c) => {
+				const [key, value] = c.split('=');
+				return [key, value];
+			})
+		);
+
+		const hexSession = cookies['hex_session'];
+		if (hexSession) {
+			try {
+				sessionData = JSON.parse(decodeURIComponent(hexSession)) as SessionCookieData;
+				currentPlayer = sessionData.PlayerNumber;
+				console.log('Session data:', sessionData);
+			} catch (error) {
+				console.error('Failed to parse hex session cookie', error);
+				currentPlayer = null;
+			}
+		} else {
+			console.warn('hex_session cookie not found');
+			currentPlayer = null;
+		}
+
 		if (gameId) {
 			refreshGameData(gameId);
 			const interval = setInterval(() => refreshGameData(gameId), 2000);
 
-			// Clear the interval when component is destroyed
-			onDestroy(() => clearInterval(interval));
+			// Properly register onDestroy
+			onDestroy(() => {
+				clearInterval(interval);
+			});
 		}
 	});
 
 	// Fetch game data and update hexGrid
-	async function refreshGameData(id) {
+	async function refreshGameData(id: string) {
 		try {
 			const response = await fetch(`http://localhost:5059/api/v1/game/${id}`);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch game data: ${response.statusText}`);
+			}
+
 			const data = await response.json();
-
 			game = data;
-
+			players = data.players || [];
 			hexGrid = data.hexagons.map(({ q, r, s, owner, isTaken }) => ({
 				q,
 				r,
@@ -66,7 +94,7 @@
 					toast.error('Cannot select this color!');
 				}
 
-				refreshGameData(gameId);
+				refreshGameData(gameId!);
 			})
 			.catch((error) => toast.error('Error selecting player color:'));
 	}
@@ -77,7 +105,7 @@
 			.then((response) => response.json())
 			.then((data) => {
 				console.log('AI players added:', data);
-				refreshGameData(gameId); // Refresh game data
+				refreshGameData(gameId!);
 			})
 			.catch((error) => console.error('Error filling AI players:', error));
 	}
@@ -95,25 +123,21 @@
 	</svg>
 
 	<div class="absolute left-4 top-4 flex gap-2">
-		<!-- Buttons for selecting player color -->
-		<button
-			class="rounded bg-red-500 px-4 py-2 font-bold text-white hover:bg-red-700"
-			on:click={() => selectColor(1)}
-		>
-			Red
-		</button>
-		<button
-			class="rounded bg-green-500 px-4 py-2 font-bold text-white hover:bg-green-700"
-			on:click={() => selectColor(2)}
-		>
-			Green
-		</button>
-		<button
-			class="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
-			on:click={() => selectColor(3)}
-		>
-			Blue
-		</button>
+		{#each Array(3) as _, i}
+			<button
+				class="rounded px-4 py-2 font-bold text-white"
+				class:bg-red-500={i === 0 && !(players && players[i] !== null)}
+				class:bg-green-500={i === 1 && !(players && players[i] !== null)}
+				class:bg-blue-500={i === 2 && !(players && players[i] !== null)}
+				class:bg-gray-400={players && players[i] !== null}
+				class:cursor-not-allowed={players && players[i] !== null}
+				class:hover:bg-gray-400={players && players[i] !== null}
+				on:click={() => selectColor(i + 1)}
+				disabled={players && players[i] !== null}
+			>
+				{i === 0 ? 'Red' : i === 1 ? 'Green' : 'Blue'}
+			</button>
+		{/each}
 
 		<!-- Button to fill remaining players with AI -->
 		<button
@@ -124,3 +148,10 @@
 		</button>
 	</div>
 </div>
+
+<style>
+	button:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+</style>

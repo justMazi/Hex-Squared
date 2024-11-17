@@ -25,35 +25,16 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
     }
 
     [HttpPost("game/{id}/pickColor")]
-    public async Task<IActionResult> PickColor(string id, [FromQuery] int color)
+    public IActionResult PickColor(string id, [FromQuery] int color)
     {
         HttpContext.Request.Cookies.TryGetValue("hex_session", out var session);
         if (session != null)
         {
-            var jsonData = Encoding.UTF8.GetString(Convert.FromBase64String(session));
-            var sessionData = JsonSerializer.Deserialize<SessionCookieData>(jsonData);
+            var sessionData = JsonSerializer.Deserialize<SessionCookieData>(session);
                 
             if (sessionData?.Id == id)
             {
-                var gameUnsafe = (Game)GameService.Get(new GameId(id)).Case;
-                if (gameUnsafe.Players[color - 1] is not null)
-                    return BadRequest("You have already picked a color");
-                var option = gameUnsafe.UnpickColor(sessionData.PlayerNumber).FoldMap(g => g.PickColor(new HumanPlayer(color), color));
-                option.IfSome(gameRepository.SaveGame);
-
-                var base64Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new SessionCookieData(sessionData.Id, color))));
-                HttpContext.Response.Cookies.Append("hex_session", base64Data,   new CookieOptions
-                {
-                    HttpOnly = false, 
-                    Secure = true,    
-                    SameSite = SameSiteMode.None,
-                    IsEssential = true,
-                    MaxAge = TimeSpan.FromDays(365),
-                    Expires = DateTimeOffset.Now.AddDays(3),
-                    Domain = "localhost"
-                });
-                await Task.Delay(100);
-                return Ok();
+                return BadRequest("You have already picked a color");
             }
             else
             {
@@ -86,12 +67,10 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
             Some: updated =>
             {
                 GameRepository.SaveGame(updated);
-                int index = Array.FindIndex(updated.Players, item => item != null);
-                var sessionData = new SessionCookieData(updated.Id.ToString(), index);
+                var sessionData = new SessionCookieData(updated.Id.ToString(), color);
 
                 var jsonData = JsonSerializer.Serialize(sessionData);
-                var base64Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonData));
-                HttpContext.Response.Cookies.Append("hex_session", base64Data,   new CookieOptions
+                HttpContext.Response.Cookies.Append("hex_session", jsonData,   new CookieOptions
                 {
                     HttpOnly = false, 
                     Secure = true,    
@@ -132,7 +111,6 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
     private Option<SessionCookieData> ExtractSession(string? session)
     {
         if( session is null ) return Option<SessionCookieData>.None;
-        var jsonData = Encoding.UTF8.GetString(Convert.FromBase64String(session));
-        return JsonSerializer.Deserialize<SessionCookieData>(jsonData);
+        return JsonSerializer.Deserialize<SessionCookieData>(session);
     }
 }
