@@ -46,7 +46,7 @@ public record Game(
     public Option<Game> UnpickColor(int color)
     {
         var updatedPlayers = Players.ToArray();
-        updatedPlayers[color] = null;
+        updatedPlayers[color-1] = null;
 
         return Some(this with
         {

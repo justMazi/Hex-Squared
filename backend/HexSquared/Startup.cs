@@ -36,6 +36,7 @@ public class Startup(IConfiguration configuration)
 
             app.UseCors(builder =>
             {
+                builder.AllowCredentials();
                 builder.SetIsOriginAllowed(_ => true);
                 builder.AllowAnyHeader();
                 builder.AllowAnyMethod();

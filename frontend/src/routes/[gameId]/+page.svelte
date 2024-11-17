@@ -3,6 +3,7 @@
 	import HexTile from './HexTile.svelte';
 	import { page } from '$app/stores';
 	import { type SessionCookieData } from './SessionCookieData';
+	import { toast } from 'svelte-french-toast';
 
 	const hexSize = 30;
 
@@ -23,8 +24,8 @@
 	// Fetch game data at intervals
 	onMount(() => {
 		if (gameId) {
-			fetchGameData(gameId);
-			const interval = setInterval(() => fetchGameData(gameId), 2000);
+			refreshGameData(gameId);
+			const interval = setInterval(() => refreshGameData(gameId), 2000);
 
 			// Clear the interval when component is destroyed
 			onDestroy(() => clearInterval(interval));
@@ -32,7 +33,7 @@
 	});
 
 	// Fetch game data and update hexGrid
-	async function fetchGameData(id) {
+	async function refreshGameData(id) {
 		try {
 			const response = await fetch(`http://localhost:5059/api/v1/game/${id}`);
 			const data = await response.json();
@@ -54,14 +55,20 @@
 	// Change player color
 	function selectColor(color: number) {
 		fetch(`http://localhost:5059/api/v1/game/${gameId}/pickColor?color=${color}`, {
-			method: 'POST'
+			method: 'POST',
+			credentials: 'include'
 		})
-			.then((data) => {
-				currentPlayer = color;
-				console.log('Player color selected:', color);
-				fetchGameData(gameId); // Refresh game data
+			.then(async (data) => {
+				if (data.ok) {
+					currentPlayer = color;
+					toast.success('Player color selected!');
+				} else {
+					toast.error('Cannot select this color!');
+				}
+
+				refreshGameData(gameId);
 			})
-			.catch((error) => console.error('Error selecting player color:', error));
+			.catch((error) => toast.error('Error selecting player color:'));
 	}
 
 	function fillWithAI() {
@@ -70,7 +77,7 @@
 			.then((response) => response.json())
 			.then((data) => {
 				console.log('AI players added:', data);
-				fetchGameData(gameId); // Refresh game data
+				refreshGameData(gameId); // Refresh game data
 			})
 			.catch((error) => console.error('Error filling AI players:', error));
 	}

@@ -25,7 +25,7 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
     }
 
     [HttpPost("game/{id}/pickColor")]
-    public IActionResult PickColor(string id, [FromQuery] int color)
+    public async Task<IActionResult> PickColor(string id, [FromQuery] int color)
     {
         HttpContext.Request.Cookies.TryGetValue("hex_session", out var session);
         if (session != null)
@@ -35,7 +35,25 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
                 
             if (sessionData?.Id == id)
             {
-                BadRequest("You have already picked a color");
+                var gameUnsafe = (Game)GameService.Get(new GameId(id)).Case;
+                if (gameUnsafe.Players[color - 1] is not null)
+                    return BadRequest("You have already picked a color");
+                var option = gameUnsafe.UnpickColor(sessionData.PlayerNumber).FoldMap(g => g.PickColor(new HumanPlayer(color), color));
+                option.IfSome(gameRepository.SaveGame);
+
+                var base64Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new SessionCookieData(sessionData.Id, color))));
+                HttpContext.Response.Cookies.Append("hex_session", base64Data,   new CookieOptions
+                {
+                    HttpOnly = false, 
+                    Secure = true,    
+                    SameSite = SameSiteMode.None,
+                    IsEssential = true,
+                    MaxAge = TimeSpan.FromDays(365),
+                    Expires = DateTimeOffset.Now.AddDays(3),
+                    Domain = "localhost"
+                });
+                await Task.Delay(100);
+                return Ok();
             }
             else
             {
@@ -73,7 +91,18 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
 
                 var jsonData = JsonSerializer.Serialize(sessionData);
                 var base64Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonData));
-                HttpContext.Response.Cookies.Append("hex_session", base64Data);
+                HttpContext.Response.Cookies.Append("hex_session", base64Data,   new CookieOptions
+                {
+                    HttpOnly = false, 
+                    Secure = true,    
+                    SameSite = SameSiteMode.None,
+                    IsEssential = true,
+                    MaxAge = TimeSpan.FromDays(365),
+                    Expires = DateTimeOffset.Now.AddDays(3),
+                    Domain = "localhost"
+                });
+
+                Console.WriteLine("adding hex session cookie");
 
                 return Ok(updated);
             },
