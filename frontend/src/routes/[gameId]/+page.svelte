@@ -4,21 +4,26 @@
 	import { page } from '$app/stores';
 	import { type SessionCookieData } from './SessionCookieData';
 	import { toast } from 'svelte-french-toast';
-	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import Client from '../../Client/Client';
+	import type { Game } from '../../Client/GeneratedClient';
+	import client from '../../Client/Client';
 
 	const hexSize = 30;
 
+	let isGameOver = false;
 	let currentPlayer: number | null = null;
 
 	let hexGrid = [];
-	let gameId: string | null = null;
-	let game: any = null;
+	let gameId: string;
+	let game: Game;
 
-	let players = game?.players || [];
-	let winner = game?.winner || null;
+	let players;
+
+	const colors = ['red', 'green', 'blue'];
 
 	export let sessionData: SessionCookieData;
 
@@ -27,8 +32,8 @@
 		gameId = $page.url.pathname.slice(1); // Assumes the ID is after the slash
 	}
 
-	// Fetch game data at intervals
 	onMount(() => {
+		console.log(isNullOrEmpty({}));
 		const cookieString = document.cookie;
 		const cookies = Object.fromEntries(
 			cookieString.split('; ').map((c) => {
@@ -42,7 +47,6 @@
 			try {
 				sessionData = JSON.parse(decodeURIComponent(hexSession)) as SessionCookieData;
 				currentPlayer = sessionData.PlayerNumber;
-				console.log('Session data:', sessionData);
 			} catch (error) {
 				console.error('Failed to parse hex session cookie', error);
 				currentPlayer = null;
@@ -66,15 +70,12 @@
 	// Fetch game data and update hexGrid
 	async function refreshGameData(id: string) {
 		try {
-			const response = await fetch(`http://localhost:5059/api/v1/game/${id}`);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch game data: ${response.statusText}`);
+			game = await Client.game(id);
+			if (game.winner) {
+				isGameOver = true;
 			}
-
-			const data = await response.json();
-			game = data;
-			players = data.players || [];
-			hexGrid = data.hexagons.map(({ q, r, s, owner, isTaken }) => ({
+			players = game.players;
+			hexGrid = game.hexagons.map(({ q, r, s, owner, isTaken }) => ({
 				q,
 				r,
 				s,
@@ -105,7 +106,25 @@
 			.catch((error) => toast.error('Error selecting player color:'));
 	}
 
-	function fillWithAI() {
+	function move(q: number, r: number, s: number) {
+		try {
+			fetch(`http://localhost:5059/api/v1/game/${gameId}/move?q=${q}&r=${r}&s=${s}`, {
+				method: 'POST',
+				credentials: 'include'
+			}).then(async (data) => {
+				if (data.ok) {
+					toast.success('Move successful!');
+				} else {
+					toast.error('Cannot move here!');
+				}
+			});
+		} catch (error) {
+			console.error('Error moving:', error);
+		}
+		refreshGameData(gameId!);
+	}
+
+	async function fillWithAI() {
 		console.log('Filling remaining players with AI...');
 		fetch(`http://localhost:5059/api/v1/game/${gameId}/fill-with-ai`, { method: 'POST' })
 			.then((response) => response.json())
@@ -114,30 +133,36 @@
 				refreshGameData(gameId!);
 			})
 			.catch((error) => console.error('Error filling AI players:', error));
+		return;
+	}
+
+	function isNullOrEmpty(objectName: {} | null) {
+		return objectName == null || isEmpty(objectName);
+	}
+	function isEmpty(objectName: {}) {
+		return Object.keys(objectName).length === 0;
 	}
 </script>
 
-<Dialog.Root open={winner != null}>
-	<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>Edit Profile</Dialog.Trigger>
+<Dialog.Root open={isGameOver}>
 	<Dialog.Content class="sm:max-w-[425px]">
 		<Dialog.Header>
-			<Dialog.Title>Edit profile</Dialog.Title>
+			<Dialog.Title>Game Over!</Dialog.Title>
 			<Dialog.Description>
-				Make changes to your profile here. Click save when you're done.
+				{#if game.winner == -1}
+					The game has ended in a draw.
+				{:else if game.winner}
+					The game has ended. The winner is the {colors[game.winner - 1]} player.
+				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
-		<div class="grid gap-4 py-4">
-			<div class="grid grid-cols-4 items-center gap-4">
-				<Label for="name" class="text-right">Name</Label>
-				<Input id="name" value="Pedro Duarte" class="col-span-3" />
-			</div>
-			<div class="grid grid-cols-4 items-center gap-4">
-				<Label for="username" class="text-right">Username</Label>
-				<Input id="username" value="@peduarte" class="col-span-3" />
-			</div>
-		</div>
 		<Dialog.Footer>
-			<Button type="submit">Save changes</Button>
+			<Button
+				on:click={() => {
+					client.reset(gameId);
+					isGameOver = false;
+				}}>Play Again</Button
+			>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
@@ -149,36 +174,62 @@
 		preserveAspectRatio="xMidYMid meet"
 	>
 		{#each hexGrid as { q, r, s, owner }}
-			<HexTile {q} {r} {s} {hexSize} {owner} browserPlayer={currentPlayer} />
+			<HexTile
+				{q}
+				{r}
+				{s}
+				{hexSize}
+				{owner}
+				browserPlayer={currentPlayer}
+				onClick={() => move(q, r, s)}
+			/>
 		{/each}
 	</svg>
 
 	<div class="absolute left-4 top-4 flex gap-2">
-		{#each Array(3) as _, i}
-			<button
-				class="rounded px-4 py-2 font-bold text-white"
-				class:bg-red-500={i === 0 && !(players && players[i] !== null)}
-				class:bg-green-500={i === 1 && !(players && players[i] !== null)}
-				class:bg-blue-500={i === 2 && !(players && players[i] !== null)}
-				class:bg-gray-400={players && players[i] !== null}
-				class:cursor-not-allowed={players && players[i] !== null}
-				class:hover:bg-gray-400={players && players[i] !== null}
-				on:click={() => selectColor(i + 1)}
-				disabled={players && players[i] !== null}
-			>
-				{i === 0 ? 'Red' : i === 1 ? 'Green' : 'Blue'}
-			</button>
-		{/each}
+		{#if players && players.every((p) => p !== null)}
+			{#each Array(3) as _, i}
+				<button
+					class="rounded px-4 py-2 font-bold text-white"
+					class:bg-red-500={i === 0 && !(players && isNullOrEmpty(players[i]))}
+					class:bg-green-500={i === 1 && !(players && isNullOrEmpty(players[i]))}
+					class:bg-blue-500={i === 2 && !(players && isNullOrEmpty(players[i]))}
+					class:bg-gray-400={players && isNullOrEmpty(players[i])}
+					class:cursor-not-allowed={players && isNullOrEmpty(players[i])}
+					class:hover:bg-gray-400={players && isNullOrEmpty(players[i])}
+					on:click={() => selectColor(i + 1)}
+					disabled={players[i]?.playerNum}
+				>
+					{i === 0 ? 'Red' : i === 1 ? 'Green' : 'Blue'}
+				</button>
+			{/each}
 
-		<!-- Button to fill remaining players with AI -->
-		<button
-			class="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700"
-			on:click={fillWithAI}
-		>
-			Fill with AI
-		</button>
+			<!-- Button to fill remaining players with AI -->
+			<button
+				class="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700"
+				on:click={fillWithAI}
+				disabled={players?.every((p) => p?.playerNum)}
+			>
+				Fill with AI
+			</button>
+		{/if}
+		{#if isGameOver}
+			<Button
+				class=""
+				on:click={() => {
+					client.reset(gameId);
+					refreshGameData(gameId);
+					isGameOver = false;
+				}}>Play Again</Button
+			>
+		{/if}
 	</div>
 </div>
+<pre>{JSON.stringify(players)}</pre>
+
+{#if game && game.winner}
+	{game.winner}
+{/if}
 
 <style>
 	button:disabled {

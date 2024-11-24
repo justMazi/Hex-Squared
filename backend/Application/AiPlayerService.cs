@@ -20,7 +20,7 @@ public class AiPlayerService(IGameRepository gameRepository) : BackgroundService
                     var currentPlayer = game.Players[game.CurrentMovePlayerIndex - 1];
                     if (currentPlayer is AiPlayer)
                     {
-                        var updatedGame = game.Move(currentPlayer, game.Hexagons.FirstOrDefault(h => h.IsTaken is false)!.Index);
+                        var updatedGame = game.Move(currentPlayer, game.Hexagons.FirstOrDefault(h => h.IsTaken is false && h.S != 11 && h.Q != 11 && h.R != 11)!);
                         updatedGame.IfSome(gameRepository.SaveGame);
                     }
                 }

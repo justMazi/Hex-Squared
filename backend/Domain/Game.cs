@@ -74,8 +74,9 @@ public record Game(
         });    
     }
 
-    public Option<Game> Move(IPlayer player, int index)
+    public Option<Game> Move(IPlayer player, Hex hexagon)
     {
+        var index = hexagon.Index;
         if (GameState is not GameState.InProgress || player.PlayerNum != CurrentMovePlayerIndex.Value)
             return None;
 
@@ -89,23 +90,52 @@ public record Game(
 
         var newPlayerIndex = CurrentMovePlayerIndex.Increment();
 
-        var won = TrySetWinState(player);
+        var isDraw = IsDraw(updatedHexagons, Players);
+        if (isDraw)
+        {
+            Console.WriteLine("remizaa");
+        }
+        var won = TrySetWinState(updatedHexagons, player);
         
         return Some(this with
         {
-            Winner = won.IsSome ? player.PlayerNum : null, 
+            GameState = isDraw || won.IsSome ? GameState.Finished : GameState, 
+            Winner = isDraw ? -1 : won.IsSome ? player.PlayerNum : null, 
             Hexagons = updatedHexagons,
             CurrentMovePlayerIndex = newPlayerIndex
         });
     }
 
-    private Option<Game> TrySetWinState(IPlayer player)
+    private bool IsDraw(IEnumerable<Hex> hexagons, IPlayer[] players)
+    {
+        return players.All(p =>
+        {
+            var copied = hexagons.Select(h => new Hex(h.R, h.S, h.Q, h.Index, h.Owner));
+            var filledBoard = copied.Select(h => h.IsTaken ? h : h.SetPlayer(p.PlayerNum));
+            var res = TrySetWinState(filledBoard, p);
+            return !res.IsSome;
+        });
+    }
+    
+    
+    public Game Reset()
+    {
+        return this with
+        {
+            Hexagons = GameHelpers.GenerateInnerHexagonCoordinates(10),
+            CurrentMovePlayerIndex = new CurrentMovePlayerIndex(1),
+            GameState = GameState.InProgress,
+            Winner = null
+        };
+    }
+
+    private Option<Game> TrySetWinState(IEnumerable<Hex> hexagons, IPlayer player)
     {
         System.Collections.Generic.HashSet<Hex> visited = new();
         Queue<Hex> toVisit = new();
 
         // Add all starting hexes to the queue (e.g., left edge for player 1)
-        var startingHexes = Hexagons.Where(h => h.Owner == player.PlayerNum && IsStartingEdge(player, h));
+        var startingHexes = hexagons.Where(h => h.Owner == player.PlayerNum && IsStartingEdge(player, h));
         foreach (var hex in startingHexes)
         {
             toVisit.Enqueue(hex);
@@ -123,7 +153,7 @@ public record Game(
             }
 
             // Add all unvisited neighbors controlled by the same player
-            foreach (var neighbor in GetNeighbors(current))
+            foreach (var neighbor in GetNeighbors(hexagons, current))
             {
                 if (!visited.Contains(neighbor) && neighbor.Owner == player.PlayerNum)
                 {
@@ -158,7 +188,7 @@ public record Game(
         };
     }
 
-    private IEnumerable<Hex> GetNeighbors(Hex hex)
+    private IEnumerable<Hex> GetNeighbors(IEnumerable<Hex> hexagons, Hex hex)
     {
         // Define the six possible directions in a hex grid
         var directions = new[]
@@ -168,13 +198,12 @@ public record Game(
 
         foreach (var (dr, dq, ds) in directions)
         {
-            var neighbor = Hexagons.FirstOrDefault(h => h.R == hex.R + dr && h.Q == hex.Q + dq && h.S == hex.S + ds);
+            var neighbor = hexagons.FirstOrDefault(h => h.R == hex.R + dr && h.Q == hex.Q + dq && h.S == hex.S + ds);
             if (neighbor != null)
             {
                 yield return neighbor;
             }
         }
     }
-
 
 }

@@ -42,6 +42,7 @@
 	"dependencies": {
 		"@layerstack/utils": "^0.0.3",
 		"apexcharts": "^3.53.0",
+		"axios": "^1.7.7",
 		"bits-ui": "^0.21.15",
 		"clsx": "^2.1.1",
 		"cmdk-sv": "^0.0.18",

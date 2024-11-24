@@ -5,6 +5,7 @@
 	export let hexSize;
 	export let owner;
 	export let browserPlayer;
+	export let onClick: () => void | undefined = () => {};
 
 	let hexColor;
 	let hoverColor;
@@ -35,6 +36,7 @@
 </script>
 
 <g
+	on:click={onClick}
 	transform="translate(
       {hexSize * Math.sqrt(3) * (q + r / 2)}, 
       {((hexSize * 3) / 2) * r} 

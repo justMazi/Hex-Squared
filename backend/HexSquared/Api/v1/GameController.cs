@@ -17,7 +17,7 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
     private IGameRepository GameRepository { get; } = gameRepository;
 
     [HttpGet("game/{id}")]
-    public IActionResult GetGameState(string id)
+    public ActionResult<Game> GetGameState(string id)
     {
         var gameId = new GameId(id);
         var game = GameService.GetOrCreate(gameId);
@@ -90,24 +90,46 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
     }
     
     [HttpPost("game/{id}/move")]
-    public IActionResult Move(string id, [FromQuery] int index)
+    public IActionResult Move(string id, [FromQuery] int q, [FromQuery] int r, [FromQuery] int s)
     {
         var gameId = new GameId(id);
         var game = GameService.GetOrCreate(gameId);
 
         HttpContext.Request.Cookies.TryGetValue("hex_session", out var session);
 
+        var hexagonToPick = game.Hexagons.FirstOrDefault(h => h.Q == q && h.R == r && h.S == s);
+        if (hexagonToPick is null)
+        {
+            return BadRequest("Couldn't perform the move.");
+        }
         var moveResult = ExtractSession(session).BiBind(
-            data => game.Move(new HumanPlayer(data.PlayerNumber), index),
+            data => game.Move(new HumanPlayer(data.PlayerNumber), hexagonToPick),
             () => Option<Game>.None
         );
 
-        if (!moveResult.IsSome) return BadRequest("Couldn't perform the move.");
-        
-        GameRepository.SaveGame(game);
-        return Ok();
+        return moveResult.Match<IActionResult>(game1 =>
+        {
+            GameRepository.SaveGame(game1);
+            return Ok();
+        }, BadRequest);
     }
     
+    [HttpPost("game/{id}/reset")]
+    public IActionResult Reset(string id)
+    {
+        // Retrieve the existing game
+        var gameId = new GameId(id);
+        var existingGame = GameService.Get(gameId);
+
+        // Check if the game exists
+        return existingGame.Match<IActionResult>(game1 =>
+        {
+            var resetGame = game1.Reset();
+            GameRepository.SaveGame(resetGame);
+            return Ok();
+        }, BadRequest);
+    }
+
     [HttpPost("game/{id}/fill-with-ai")]
     public IActionResult FillWithAi(string id, [FromQuery] int index)
     {
