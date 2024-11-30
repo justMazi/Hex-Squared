@@ -36,28 +36,40 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
             {
                 return BadRequest("You have already picked a color");
             }
-            else
-            {
-                GameService.Get(new GameId(id)).Match(
-                    // caller has a cookie referencing some other game, that may or may not exist
-                    existingGame =>
+
+            var gameResult = GameService.Get(new GameId(sessionData.Id)).Match(
+                existingGame =>
+                {
+                    if (existingGame.GameState == GameState.InProgress)
                     {
-                        if (existingGame.GameState == GameState.InProgress)
-                        {
-                            Redirect($"/{existingGame.Id}");
-                        }
-                        else if (existingGame.GameState == GameState.Finished)
-                        {
-                            GameRepository.DeleteGame(existingGame);
-                        }
-                        else if (existingGame.GameState == GameState.WaitingForPlayers)
-                        {
-                            existingGame.UnpickColor(color);
-                        }
-                    },
-                    () => { HttpContext.Response.Cookies.Delete("hex_session");}
-                );
+                        // Return the RedirectResult properly
+                        return Redirect($"/{existingGame.Id}");
+                    }
+                    else if (existingGame.GameState == GameState.Finished)
+                    {
+                        GameRepository.DeleteGame(existingGame);
+                        HttpContext.Response.Cookies.Delete("hex_session");
+                    }
+                    else if (existingGame.GameState == GameState.WaitingForPlayers)
+                    {
+                        var updatedGame = existingGame.UnpickColor(sessionData.PlayerNumber);
+                        updatedGame.IfSome(game => GameRepository.SaveGame(game));
+                        HttpContext.Response.Cookies.Delete("hex_session");
+                    }
+
+                    return null; // Default case for void return scenarios
+                },
+                () => 
+                {
+                    HttpContext.Response.Cookies.Delete("hex_session");
+                    return null;
+                }
+            );
+            if (gameResult != null)
+            {
+                return gameResult; // Return early if `Match` provides a result
             }
+
         }
 
         var gameId = new GameId(id);
@@ -117,14 +129,12 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
     [HttpPost("game/{id}/reset")]
     public IActionResult Reset(string id)
     {
-        // Retrieve the existing game
         var gameId = new GameId(id);
         var existingGame = GameService.Get(gameId);
 
-        // Check if the game exists
-        return existingGame.Match<IActionResult>(game1 =>
+        return existingGame.Match<IActionResult>(game =>
         {
-            var resetGame = game1.Reset();
+            var resetGame = game.Reset();
             GameRepository.SaveGame(resetGame);
             return Ok();
         }, BadRequest);

@@ -1,4 +1,7 @@
 <script lang="ts">
+	import type { SessionCookieData } from './SessionCookieData';
+	export let isGameOver;
+	$: gameOver = false;
 	export let q;
 	export let r;
 	export let s;
@@ -6,6 +9,7 @@
 	export let owner;
 	export let browserPlayer;
 	export let onClick: () => void | undefined = () => {};
+	export let isSessionMatch: boolean;
 
 	let hexColor;
 	let hoverColor;
@@ -32,11 +36,13 @@
 						? 'fill-gray-500'
 						: fillColor;
 
-	let isHoverable = owner === 0 && q != 11 && r != 11 && s != 11;
+	const cookies = Object.fromEntries(document.cookie.split('; ').map((c) => c.split('=')));
+
+	let isHoverable = owner === 0 && ![q, r, s].includes(11) && isSessionMatch;
 </script>
 
 <g
-	on:click={onClick}
+	on:click={gameOver ? undefined : onClick}
 	transform="translate(
       {hexSize * Math.sqrt(3) * (q + r / 2)}, 
       {((hexSize * 3) / 2) * r} 

@@ -18,9 +18,9 @@ public class GameRepository : IGameRepository
         return Games.Values.Where(g => g.GameState == GameState.InProgress && g.Players.Any(p => p is AiPlayer)).ToList();
     }
 
-    public void SaveGame(Game game)
+    public bool SaveGame(Game game)
     {
-        Games.TryUpdate(game.Id, game, Games.GetValueOrDefault(game.Id));
+        return Games.TryUpdate(game.Id, game, Games.GetValueOrDefault(game.Id));
     }
 
     public void DeleteGame(Game existingGame)

@@ -40,17 +40,16 @@
 	<img src="../src/lib/assets/images/honeycomb.svg" alt="hex2" class="h-16 w-16" />
 
 	<!-- Centered Title -->
-	<h1 class="text-center text-2xl font-bold text-gray-800">Hex Squared</h1>
+	<h1 class="mt-8 text-center text-2xl font-bold text-gray-800">Hex Squared</h1>
 
 	<!-- Card Component -->
-	<Card class="mt-4 w-full max-w-md rounded-lg bg-white p-6 shadow-md">
+	<Card class="mt-8 w-full max-w-md rounded-lg bg-white p-6 shadow-md">
 		<CardHeader>
 			<CardTitle class="text-lg font-semibold text-gray-800">Start Game</CardTitle>
 		</CardHeader>
 		<CardContent>
 			<div class="flex flex-col space-y-4 text-sm text-gray-700">
-				<p>Choose how you want to play the game.</p>
-				<p>You can always send the link to your friends for them to watch.</p>
+				<p>Send the link to your friends so they can join the game or simply just spectate.</p>
 				<div class="flex items-center space-x-2">
 					<input
 						id="link"
@@ -94,7 +93,7 @@
 		href="https://github.com/justMazi/Hex-Squared"
 		target="_blank"
 		rel="noopener noreferrer"
-		class="mt-6 flex items-center text-gray-600 hover:text-gray-900"
+		class="mt-8 flex items-center text-gray-600 hover:text-gray-900"
 	>
 		<Github alt="GitHub" class="mr-2 h-6 w-6" />
 		<span>View on GitHub</span>

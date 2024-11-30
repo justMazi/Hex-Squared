@@ -9,7 +9,7 @@ public interface IGameRepository
     public Game CreateNewGame(GameId gameId);
     public List<Game?> GetAllInProgressGamesWithAi();
 
-    public void SaveGame(Game game);
+    public bool SaveGame(Game game);
 
     void DeleteGame(Game existingGame);
 }

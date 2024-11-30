@@ -11,6 +11,7 @@
 	import Client from '../../Client/Client';
 	import type { Game } from '../../Client/GeneratedClient';
 	import client from '../../Client/Client';
+	import { goto } from '$app/navigation';
 
 	const hexSize = 30;
 
@@ -22,6 +23,15 @@
 	let game: Game;
 
 	let players;
+
+	let isSessionMatch: boolean;
+
+	$: {
+		const currentPath = decodeURIComponent($page.url.pathname.slice(1).trim());
+		const sessionId = sessionData?.Id ? decodeURIComponent(sessionData.Id.trim()) : null;
+
+		isSessionMatch = sessionId && currentPath && sessionId === currentPath;
+	}
 
 	const colors = ['red', 'green', 'blue'];
 
@@ -97,8 +107,11 @@
 				if (data.ok) {
 					currentPlayer = color;
 					toast.success('Player color selected!');
+				} else if (data.redirected) {
+					window.location.href = new URL(data.url).pathname;
+					return;
 				} else {
-					toast.error('Cannot select this color!');
+					toast.error('Error selecting player color');
 				}
 
 				refreshGameData(gameId!);
@@ -157,12 +170,14 @@
 			</Dialog.Description>
 		</Dialog.Header>
 		<Dialog.Footer>
-			<Button
-				on:click={() => {
-					client.reset(gameId);
-					isGameOver = false;
-				}}>Play Again</Button
-			>
+			{#if isSessionMatch}
+				<Button
+					on:click={() => {
+						client.reset(gameId);
+						isGameOver = false;
+					}}>Play Again</Button
+				>
+			{/if}
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
@@ -180,6 +195,8 @@
 				{s}
 				{hexSize}
 				{owner}
+				{isSessionMatch}
+				{isGameOver}
 				browserPlayer={currentPlayer}
 				onClick={() => move(q, r, s)}
 			/>
@@ -206,14 +223,14 @@
 
 			<!-- Button to fill remaining players with AI -->
 			<button
-				class="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700"
+				class="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700 disabled:hover:bg-gray-500"
 				on:click={fillWithAI}
 				disabled={players?.every((p) => p?.playerNum)}
 			>
 				Fill with AI
 			</button>
 		{/if}
-		{#if isGameOver}
+		{#if isGameOver && isSessionMatch}
 			<Button
 				class=""
 				on:click={() => {
@@ -225,11 +242,12 @@
 		{/if}
 	</div>
 </div>
-<pre>{JSON.stringify(players)}</pre>
+
+<!-- <pre>{JSON.stringify(players)}</pre>
 
 {#if game && game.winner}
 	{game.winner}
-{/if}
+{/if} -->
 
 <style>
 	button:disabled {

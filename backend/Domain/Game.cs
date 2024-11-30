@@ -17,7 +17,7 @@ public record Game(
         : this(
             id,
             Players: new IPlayer[3],
-            Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(10),
+            Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(),
             CurrentMovePlayerIndex: new CurrentMovePlayerIndex(0),
             GameState: GameState.WaitingForPlayers)
     {
@@ -91,10 +91,7 @@ public record Game(
         var newPlayerIndex = CurrentMovePlayerIndex.Increment();
 
         var isDraw = IsDraw(updatedHexagons, Players);
-        if (isDraw)
-        {
-            Console.WriteLine("remizaa");
-        }
+
         var won = TrySetWinState(updatedHexagons, player);
         
         return Some(this with
@@ -122,7 +119,7 @@ public record Game(
     {
         return this with
         {
-            Hexagons = GameHelpers.GenerateInnerHexagonCoordinates(10),
+            Hexagons = GameHelpers.GenerateInnerHexagonCoordinates(),
             CurrentMovePlayerIndex = new CurrentMovePlayerIndex(1),
             GameState = GameState.InProgress,
             Winner = null
