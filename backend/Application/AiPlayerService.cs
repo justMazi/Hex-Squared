@@ -31,7 +31,7 @@ public class AiPlayerService(IGameRepository gameRepository) : BackgroundService
                     {
                         var bestMoveIndex = -1;
 
-                        if (currentPlayer.PlayerNum == 1)
+                        if (false)// currentPlayer.PlayerNum == 1)
                         {
                             // Prepare request data
                             var requestData = new
@@ -46,11 +46,11 @@ public class AiPlayerService(IGameRepository gameRepository) : BackgroundService
                                 }).ToList(),
                                 player = currentPlayer.PlayerNum,
                                 iter_limit = 10, // Adjust as needed
-                                num_threads = 4   // Adjust as needed
                             };
 
                             // Serialize request to JSON
                             var requestJson = JsonSerializer.Serialize(requestData);
+                            // await File.WriteAllTextAsync("V:/MFF/bakalarka/gamestate.json", requestJson, stoppingToken);
 
                             // Make HTTP POST request to AI service
                             var response = await _httpClient.PostAsync(AiServiceUrl, new StringContent(requestJson, Encoding.UTF8, "application/json"), stoppingToken);
