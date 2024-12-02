@@ -1,18 +1,20 @@
+version: '3.8'
+
 services:
   hex_backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      platform: linux/arm64
     image: docker.mazi.lol/hex_backend:latest
+    platform: linux/arm64  # Move platform to the service level
     ports:
-      - "8100:8000" # Map to a different host port (8100)
+      - "8100:8000"
 
   hex_frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      platform: linux/arm64
     image: docker.mazi.lol/hex_frontend:latest
+    platform: linux/arm64  # Move platform to the service level
     ports:
-      - "3100:3000" # Map to a different host port (3100)
+      - "3100:3000"
