@@ -1,58 +1,40 @@
 import numpy as np
 from collections import deque
 from typing import List, Optional
-import asyncio
-from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from fastapi.responses import JSONResponse
-import json
-
-# HexState and related functionality
 import numpy as np
 from typing import List, Optional
 from collections import deque
 import numpy as np
 from typing import List, Optional
 from collections import deque
-
+from collections import deque
+from typing import List, Optional
+import numpy as np
 class HexState:
     def __init__(self, board: np.ndarray, player: int):
         """
         Initialize the HexState.
         :param board: Numpy array representing the game board.
-        :param player: Current player's turn (e.g., 1 or 2).
+        :param player: Current player's turn (1, 2, or 3).
         """
         self.board = board
         self.player = player
-
-    def get_neighbors(self, coords: tuple) -> List[tuple]:
-        """
-        Get the neighboring hexes for a given hex coordinate.
-        :param coords: Tuple (r, s, q) representing a hex coordinate.
-        :return: List of neighbor coordinates as tuples.
-        """
-        neighbors = []
-        r, s, q = coords
-        for dr, ds, dq in [(1, -1, 0), (-1, 1, 0), (0, 1, -1),
-                           (0, -1, 1), (1, 0, -1), (-1, 0, 1)]:
-            neighbor = (r + dr, s + ds, q + dq)
-            if any((neighbor == tuple(hex[:3])) for hex in self.board):
-                neighbors.append(neighbor)
-        return neighbors
+        self.hex_dict = {tuple(hex[:3]): hex for hex in self.board}  # Precompute for fast access
 
     def get_legal_moves(self) -> List[int]:
         """
-        Get the list of legal moves.
+        Get the list of legal moves for a given player.
+        :param for_player: Player number (1, 2, or 3). If None, defaults to current player.
         :return: List of indices of legal moves.
         """
-        radius = 11  # Define the radius of the hex board
+
+        radius = 11
         return [
             hex[3] for hex in self.board
-            if hex[4] == 0 and not (
-                hex[0] == -radius or hex[1] == -radius or hex[2] == -radius or
-                hex[0] == radius or hex[1] == radius or hex[2] == radius
+            if hex[4] == 0 and not any(
+                coord == radius or coord == -radius for coord in hex[:3]
             )
         ]
 
@@ -64,8 +46,7 @@ class HexState:
         """
         new_board = self.board.copy()
         new_board[move][4] = self.player
-        next_player = 1 if self.player == 2 else 2
-
+        next_player = (self.player % 3) + 1  # Rotate among 1, 2, 3
         return HexState(new_board, next_player)
 
     def try_set_win_state(self, player: int) -> bool:
@@ -74,28 +55,23 @@ class HexState:
         :param player: Player to check for a winning state.
         :return: True if the player has won, False otherwise.
         """
-        hex_dict = {tuple(hex[:3]): hex for hex in self.board}
         visited = set()
-        to_visit = deque()
+        to_visit = deque(
+            tuple(hex[:3]) for hex in self.board
+            if hex[4] == player and self.is_starting_edge(player, hex)
+        )
 
-        # Add starting edges to visit queue
-        for hex in self.board:
-            if hex[4] == player and self.is_starting_edge(player, hex):
-                coords = tuple(hex[:3])
-                to_visit.append(coords)
-                visited.add(coords)
-
-        # BFS to find a path to the opposite edge
         while to_visit:
             current = to_visit.popleft()
+            if current in visited:
+                continue
+            visited.add(current)
             if self.is_opposite_edge(player, current):
                 return True
-            for neighbor_coords in self.get_neighbors(current):
-                if neighbor_coords in hex_dict:
-                    neighbor = hex_dict[neighbor_coords]
-                    if neighbor_coords not in visited and neighbor[4] == player:
-                        to_visit.append(neighbor_coords)
-                        visited.add(neighbor_coords)
+            to_visit.extend(
+                neighbor for neighbor in self.get_neighbors(current)
+                if neighbor not in visited and self.hex_dict[neighbor][4] == player
+            )
 
         return False
 
@@ -108,7 +84,11 @@ class HexState:
         :return: True if the hex is on the starting edge.
         """
         r, s, q = hex[:3]
-        return {1: q == -radius, 2: r == -radius}[player]
+        return {
+            1: q == -radius,  # Player 1's starting edge
+            2: r == -radius,  # Player 2's starting edge
+            3: s == -radius   # Player 3's starting edge
+        }[player]
 
     def is_opposite_edge(self, player: int, hex: tuple, radius: int = 11) -> bool:
         """
@@ -119,21 +99,25 @@ class HexState:
         :return: True if the hex is on the opposite edge.
         """
         r, s, q = hex
-        return {1: q == radius, 2: r == radius}[player]
+        return {
+            1: q == radius,   # Player 1's opposite edge
+            2: r == radius,   # Player 2's opposite edge
+            3: s == radius    # Player 3's opposite edge
+        }[player]
 
     def is_terminal(self) -> bool:
         """
         Check if the game state is terminal (no more legal moves).
         :return: True if the game is terminal, False otherwise.
         """
-        return len(self.get_legal_moves()) == 0
+        return not self.get_legal_moves()
 
     def get_winner(self) -> Optional[int]:
         """
         Determine the winner of the game.
         :return: Player number if there's a winner, None otherwise.
         """
-        for player in [1, 2]:
+        for player in [1, 2, 3]:
             if self.try_set_win_state(player):
                 return player
         return None
