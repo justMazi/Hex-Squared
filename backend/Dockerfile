@@ -1,5 +1,5 @@
-# Use the .NET SDK for building
-FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+# Stage 1: Build
+FROM --platform=linux/arm64 mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 
 # Set the working directory
 WORKDIR /source
@@ -11,14 +11,14 @@ COPY . .
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet restore backend.sln
 
-ARG TARGETARCH
-
 # Build and publish the solution
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet publish backend.sln -c Release --self-contained false --use-current-runtime -o /app -a ${TARGETARCH/amd64/x64}
+    dotnet publish backend.sln -c Release --self-contained false --use-current-runtime -o /app
 
-# Use the .NET runtime for running the application
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
+# Stage 2: Runtime
+FROM --platform=linux/arm64 mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
+
+# Set the working directory
 WORKDIR /app
 
 # Copy the published application files

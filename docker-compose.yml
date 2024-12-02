@@ -6,7 +6,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     image: docker.mazi.lol/hex_backend:latest
-    platform: linux/arm64  # Move platform to the service level
+    platform: linux/arm64
     ports:
       - "8100:8000"
 
@@ -15,6 +15,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     image: docker.mazi.lol/hex_frontend:latest
-    platform: linux/arm64  # Move platform to the service level
+    platform: linux/arm64
     ports:
       - "3100:3000"
