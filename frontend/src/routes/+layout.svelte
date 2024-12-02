@@ -1,5 +1,5 @@
 <script>
-	import '../app.css';
+	import '../App.css';
 	import { ModeWatcher } from 'mode-watcher';
 	import toast, { Toaster } from 'svelte-french-toast';
 </script>
