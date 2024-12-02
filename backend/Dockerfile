@@ -1,21 +1,29 @@
-# syntax=docker/dockerfile:1
+# Use the .NET SDK for building
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 
-# Stage 1: Build
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
-COPY . /source
-WORKDIR /source/backend
+# Set the working directory
+WORKDIR /source
 
-# Build the application for the target architecture
-ARG TARGETARCH
+# Copy the entire solution and project files
+COPY . .
+
+# Restore NuGet dependencies for the solution
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet publish -a ${TARGETARCH/amd64/x64} --use-current-runtime --self-contained false -o /app
+    dotnet restore backend.sln
 
-# Stage 2: Runtime
+# Build and publish the solution
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet publish backend.sln -c Release --self-contained false --use-current-runtime -o /app
+
+# Use the .NET runtime for running the application
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
 
-# Copy application files from the build stage
+# Copy the published application files
 COPY --from=build /app .
 
-# Ensure the dotnet command runs correctly using the full path
+# Expose the port (optional, depends on your service configuration)
+EXPOSE 8000
+
+# Set the entry point to the main application DLL
 ENTRYPOINT ["dotnet", "HexSquared.dll"]
