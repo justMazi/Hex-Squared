@@ -1,10 +1,9 @@
-version: '3.8'
-
 services:
   hex_backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      platform: linux/arm64
     image: docker.mazi.lol/hex_backend:latest
     ports:
       - "8100:8000" # Map to a different host port (8100)
@@ -13,6 +12,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      platform: linux/arm64
     image: docker.mazi.lol/hex_frontend:latest
     ports:
       - "3100:3000" # Map to a different host port (3100)
