@@ -1,10 +1,6 @@
-import math
-import os
 import numpy as np
-import random
-from collections import deque, defaultdict
+from collections import deque
 from typing import List, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -14,28 +10,44 @@ from fastapi.responses import JSONResponse
 import json
 
 # HexState and related functionality
+import numpy as np
+from typing import List, Optional
+from collections import deque
+import numpy as np
+from typing import List, Optional
+from collections import deque
+
 class HexState:
     def __init__(self, board: np.ndarray, player: int):
+        """
+        Initialize the HexState.
+        :param board: Numpy array representing the game board.
+        :param player: Current player's turn (e.g., 1 or 2).
+        """
         self.board = board
         self.player = player
-        self.neighbor_map = self.precompute_neighbors()
 
-    def precompute_neighbors(self):
-        hex_dict = {tuple(hex[:3]): hex for hex in self.board}
-        neighbors = {}
-        for hex in self.board:
-            coords = tuple(hex[:3])
-            neighbors[coords] = [
-                (coords[0] + dr, coords[1] + ds, coords[2] + dq)
-                for dr, ds, dq in [(1, -1, 0), (-1, 1, 0), (0, 1, -1),
-                                   (0, -1, 1), (1, 0, -1), (-1, 0, 1)]
-                if (coords[0] + dr, coords[1] + ds, coords[2] + dq) in hex_dict
-            ]
+    def get_neighbors(self, coords: tuple) -> List[tuple]:
+        """
+        Get the neighboring hexes for a given hex coordinate.
+        :param coords: Tuple (r, s, q) representing a hex coordinate.
+        :return: List of neighbor coordinates as tuples.
+        """
+        neighbors = []
+        r, s, q = coords
+        for dr, ds, dq in [(1, -1, 0), (-1, 1, 0), (0, 1, -1),
+                           (0, -1, 1), (1, 0, -1), (-1, 0, 1)]:
+            neighbor = (r + dr, s + ds, q + dq)
+            if any((neighbor == tuple(hex[:3])) for hex in self.board):
+                neighbors.append(neighbor)
         return neighbors
 
     def get_legal_moves(self) -> List[int]:
+        """
+        Get the list of legal moves.
+        :return: List of indices of legal moves.
+        """
         radius = 11  # Define the radius of the hex board
-        # Exclude edge hexes and return indices of legal moves
         return [
             hex[3] for hex in self.board
             if hex[4] == 0 and not (
@@ -45,27 +57,40 @@ class HexState:
         ]
 
     def apply_move(self, move: int) -> "HexState":
+        """
+        Apply a move and return a new HexState.
+        :param move: Index of the move to apply.
+        :return: New HexState after the move is applied.
+        """
         new_board = self.board.copy()
         new_board[move][4] = self.player
         next_player = 1 if self.player == 2 else 2
+
         return HexState(new_board, next_player)
 
     def try_set_win_state(self, player: int) -> bool:
+        """
+        Check if a player has won the game.
+        :param player: Player to check for a winning state.
+        :return: True if the player has won, False otherwise.
+        """
         hex_dict = {tuple(hex[:3]): hex for hex in self.board}
         visited = set()
         to_visit = deque()
 
+        # Add starting edges to visit queue
         for hex in self.board:
             if hex[4] == player and self.is_starting_edge(player, hex):
                 coords = tuple(hex[:3])
                 to_visit.append(coords)
                 visited.add(coords)
 
+        # BFS to find a path to the opposite edge
         while to_visit:
             current = to_visit.popleft()
             if self.is_opposite_edge(player, current):
                 return True
-            for neighbor_coords in self.neighbor_map[current]:
+            for neighbor_coords in self.get_neighbors(current):
                 if neighbor_coords in hex_dict:
                     neighbor = hex_dict[neighbor_coords]
                     if neighbor_coords not in visited and neighbor[4] == player:
@@ -75,43 +100,45 @@ class HexState:
         return False
 
     def is_starting_edge(self, player: int, hex: np.ndarray, radius: int = 11) -> bool:
+        """
+        Check if a hex is on the starting edge for a player.
+        :param player: Player number.
+        :param hex: Hex array.
+        :param radius: Radius of the board.
+        :return: True if the hex is on the starting edge.
+        """
         r, s, q = hex[:3]
         return {1: q == -radius, 2: r == -radius}[player]
 
     def is_opposite_edge(self, player: int, hex: tuple, radius: int = 11) -> bool:
+        """
+        Check if a hex is on the opposite edge for a player.
+        :param player: Player number.
+        :param hex: Hex coordinates as a tuple.
+        :param radius: Radius of the board.
+        :return: True if the hex is on the opposite edge.
+        """
         r, s, q = hex
         return {1: q == radius, 2: r == radius}[player]
 
     def is_terminal(self) -> bool:
-        return self.get_winner() is not None or len(self.get_legal_moves()) == 0
+        """
+        Check if the game state is terminal (no more legal moves).
+        :return: True if the game is terminal, False otherwise.
+        """
+        return len(self.get_legal_moves()) == 0
 
     def get_winner(self) -> Optional[int]:
+        """
+        Determine the winner of the game.
+        :return: Player number if there's a winner, None otherwise.
+        """
         for player in [1, 2]:
             if self.try_set_win_state(player):
                 return player
         return None
 
-def create_initial_board(radius: int) -> np.ndarray:
-    """
-    Create the initial game board as a numpy array.
-    """
-    radius += 1
-    coordinates = []
-    index = 0
-    for r in range(-radius, radius + 1):
-        r1 = max(-radius, -r - radius)
-        r2 = min(radius, -r + radius)
-        for q in range(r1, r2 + 1):
-            s = -r - q
-            coordinates.append([r, s, q, index, 0])
-            index += 1
-    return np.array(coordinates, dtype=int)
-
-# FastAPI app setup
-app = FastAPI()
-
 from pydantic import BaseModel
-from typing import List
 
 class Hex(BaseModel):
     R: int
@@ -119,144 +146,3 @@ class Hex(BaseModel):
     Q: int
     Index: int
     Owner: int
-
-class MoveRequest(BaseModel):
-    board: List[Hex]  # List of Hex dictionaries
-    player: int
-    iter_limit: int = 10
-    num_threads: int = 4
-
-@app.post("/best-move/")
-async def get_best_move(request: MoveRequest):
-    # Convert the list of Hex objects to a NumPy array for HexState
-    board_array = np.array(
-        [[h.R, h.S, h.Q, h.Index, h.Owner] for h in request.board],
-        dtype=int
-    )
-    
-    # Initialize HexState
-    initial_state = HexState(board_array, player=request.player)
-
-    # Initialize Monte Carlo tree
-    montecarlo = initialize_montecarlo(initial_state)
-
-    # Run simulations
-    montecarlo.simulate(request.iter_limit)
-
-    # Select the best move
-    chosen_child_node = montecarlo.make_choice()
-
-    # Extract the index of the chosen move
-    chosen_move_index = None
-    for hexagon in chosen_child_node.state.board:
-        if hexagon[4] != 0 and initial_state.board[hexagon[3]][4] == 0:
-            chosen_move_index = hexagon[3]
-            break
-
-    if chosen_move_index is None:
-        return JSONResponse(status_code=500, content={"error": "No valid move found."})
-
-    return {"BestMove": chosen_move_index}
-
-
-@app.get("/")
-def root():
-    return {"message": "Hex MCTS API is running"}
-
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()  # Convert NumPy array to a list
-        return super().default(obj)
-
-class FastAPIRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        try:
-            route = next((r for r in app.routes if r.path == self.path and r.methods and "GET" in r.methods), None)
-            if route:
-                response = asyncio.run(route.endpoint())
-                self._send_response(response)
-            else:
-                self.send_error(404, "Not Found")
-        except Exception as e:
-            self.send_error(500, str(e))
-
-    def do_POST(self):
-        try:
-            route = next((r for r in app.routes if r.path == self.path and r.methods and "POST" in r.methods), None)
-            if route:
-                content_length = int(self.headers["Content-Length"])
-                body = self.rfile.read(content_length).decode("utf-8")
-                request_data = json.loads(body)
-
-                # Prepare a Pydantic model from the request data
-                request_model = MoveRequest(**request_data)
-
-                # Run the route's endpoint in an asyncio event loop
-                response = asyncio.run(route.endpoint(request_model))
-                self._send_response(response)
-            else:
-                self.send_error(404, "Not Found")
-        except Exception as e:
-            self.send_error(500, str(e))
-
-    def _send_response(self, response):
-        # Serialize the response using the custom encoder
-        if isinstance(response, JSONResponse):
-            self.send_response(response.status_code)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(response.body)
-        else:
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(response, cls=NumpyEncoder).encode("utf-8"))
-
-
-
-from montecarlo.node import Node
-from montecarlo.montecarlo import MonteCarlo
-import numpy as np
-import random
-from copy import deepcopy
-
-# Define the child finder function
-def child_finder(node, _):
-    state = node.state  # Extract the HexState object from the node
-    for move in state.get_legal_moves():
-        child_state = state.apply_move(move)  # Generate a new state for each move
-        child_node = Node(child_state)  # Create a new node for the child state
-        child_node.player_number = child_state.player  # Set the player for the child node
-        node.add_child(child_node)  # Add the child node to the parent node
-
-
-# Define the node evaluator function
-def node_evaluator(node, _):
-    state = node.state  # Extract the HexState object from the node
-    winner = state.get_winner()
-    if winner == state.player:
-        return 1  # Current player wins
-    elif winner is not None:
-        return -1  # Opponent wins
-    return 0  # Not a terminal state
-
-# Create the Monte Carlo tree for HexState
-def initialize_montecarlo(hex_state: HexState):
-    root_node = Node(hex_state)
-    root_node.player_number = hex_state.player
-    montecarlo = MonteCarlo(root_node)
-    montecarlo.child_finder = child_finder
-    montecarlo.node_evaluator = node_evaluator
-    return montecarlo
-
-
-# Example usage
-if __name__ == "__main__":
-    server = HTTPServer(("localhost", 8000), FastAPIRequestHandler)
-    print("Server running on http://localhost:8000")
-    server.serve_forever()
