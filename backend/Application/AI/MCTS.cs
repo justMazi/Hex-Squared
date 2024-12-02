@@ -152,7 +152,7 @@ public class Node
 }
 public static class MCTS
 {
-    public static int FindBestMove(List<Hex> hexes, int currentPlayer, int iterations = 1000, int radius = 11)
+    public static int FindBestMove(List<Hex> hexes, int currentPlayer, int iterations = 100000, int radius = 11)
     {
         var rootGame = new Game(hexes, currentPlayer, radius).RotateToPlayer(1);
         var rootNode = new Node(-1, null, rootGame);

@@ -31,11 +31,7 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
         if (session != null)
         {
             var sessionData = JsonSerializer.Deserialize<SessionCookieData>(session);
-                
-            if (sessionData?.Id == id)
-            {
-                return BadRequest("You have already picked a color");
-            }
+            
 
             var gameResult = GameService.Get(new GameId(sessionData.Id)).Match(
                 existingGame =>

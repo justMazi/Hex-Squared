@@ -91,61 +91,6 @@ class HexState:
                 return player
         return None
 
-def simulate(state: HexState, player: int) -> int:
-    """
-    Simulates a game from the given state until a terminal state is reached.
-    Returns 1 if the player wins, 0 otherwise.
-    """
-    current_state = state
-    while not current_state.is_terminal():
-        legal_moves = current_state.get_legal_moves()
-        move = random.choice(legal_moves)
-        current_state = current_state.apply_move(move)
-    return 1 if current_state.get_winner() == player else 0
-
-import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections import defaultdict
-from random import choice  # Assuming simulate requires some randomness
-
-def mcts_parallel(initial_state: HexState, iter_limit: int = 100) -> int:
-    """
-    Parallelized MCTS where each iteration of the simulation runs in a separate thread.
-    
-    :param initial_state: The starting state of the Hex game.
-    :param iter_limit: Total number of MCTS iterations to perform.
-    :return: The best move based on MCTS simulations.
-    """
-    legal_moves = initial_state.get_legal_moves()
-    results = defaultdict(int)
-
-    def simulate_one_iteration():
-        """
-        Simulates one random game starting from the initial state.
-        Chooses a random legal move to begin with and simulates its outcome.
-        :return: The move that was simulated and whether it resulted in a win.
-        """
-        move = choice(legal_moves)  # Pick a random move to simulate
-        new_state = initial_state.apply_move(move)
-        win = simulate(new_state, initial_state.player)  # Perform the simulation
-        return move, win
-
-    # Run all iterations in parallel
-    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-        futures = [executor.submit(simulate_one_iteration) for _ in range(iter_limit)]
-        
-        for future in as_completed(futures):
-            try:
-                move, win = future.result()
-                results[move] += win  # Aggregate wins for each move
-            except Exception as e:
-                print(f"Error in simulation iteration: {e}")
-
-    # Select the move with the highest win count
-    best_move = max(results, key=results.get)
-    return best_move
-
-
 def create_initial_board(radius: int) -> np.ndarray:
     """
     Create the initial game board as a numpy array.
@@ -165,22 +110,54 @@ def create_initial_board(radius: int) -> np.ndarray:
 # FastAPI app setup
 app = FastAPI()
 
+from pydantic import BaseModel
+from typing import List
+
+class Hex(BaseModel):
+    R: int
+    S: int
+    Q: int
+    Index: int
+    Owner: int
+
 class MoveRequest(BaseModel):
-    board: List[List[int]]
+    board: List[Hex]  # List of Hex dictionaries
     player: int
-    iter_limit: int = 1000
+    iter_limit: int = 10
     num_threads: int = 4
 
 @app.post("/best-move/")
 async def get_best_move(request: MoveRequest):
-    board = np.array(request.board, dtype=int)
-    initial_state = HexState(board, player=request.player)
-    best_move = mcts_parallel(
-        initial_state,
-        iter_limit=request.iter_limit,
-        num_threads=request.num_threads
+    # Convert the list of Hex objects to a NumPy array for HexState
+    board_array = np.array(
+        [[h.R, h.S, h.Q, h.Index, h.Owner] for h in request.board],
+        dtype=int
     )
-    return {"BestMove": int(best_move)}
+    
+    # Initialize HexState
+    initial_state = HexState(board_array, player=request.player)
+
+    # Initialize Monte Carlo tree
+    montecarlo = initialize_montecarlo(initial_state)
+
+    # Run simulations
+    montecarlo.simulate(request.iter_limit)
+
+    # Select the best move
+    chosen_child_node = montecarlo.make_choice()
+
+    # Extract the index of the chosen move
+    chosen_move_index = None
+    for hexagon in chosen_child_node.state.board:
+        if hexagon[4] != 0 and initial_state.board[hexagon[3]][4] == 0:
+            chosen_move_index = hexagon[3]
+            break
+
+    if chosen_move_index is None:
+        return JSONResponse(status_code=500, content={"error": "No valid move found."})
+
+    return {"BestMove": chosen_move_index}
+
 
 @app.get("/")
 def root():
@@ -240,6 +217,45 @@ class FastAPIRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(response, cls=NumpyEncoder).encode("utf-8"))
 
+
+
+from montecarlo.node import Node
+from montecarlo.montecarlo import MonteCarlo
+import numpy as np
+import random
+from copy import deepcopy
+
+# Define the child finder function
+def child_finder(node, _):
+    state = node.state  # Extract the HexState object from the node
+    for move in state.get_legal_moves():
+        child_state = state.apply_move(move)  # Generate a new state for each move
+        child_node = Node(child_state)  # Create a new node for the child state
+        child_node.player_number = child_state.player  # Set the player for the child node
+        node.add_child(child_node)  # Add the child node to the parent node
+
+
+# Define the node evaluator function
+def node_evaluator(node, _):
+    state = node.state  # Extract the HexState object from the node
+    winner = state.get_winner()
+    if winner == state.player:
+        return 1  # Current player wins
+    elif winner is not None:
+        return -1  # Opponent wins
+    return 0  # Not a terminal state
+
+# Create the Monte Carlo tree for HexState
+def initialize_montecarlo(hex_state: HexState):
+    root_node = Node(hex_state)
+    root_node.player_number = hex_state.player
+    montecarlo = MonteCarlo(root_node)
+    montecarlo.child_finder = child_finder
+    montecarlo.node_evaluator = node_evaluator
+    return montecarlo
+
+
+# Example usage
 if __name__ == "__main__":
     server = HTTPServer(("localhost", 8000), FastAPIRequestHandler)
     print("Server running on http://localhost:8000")
