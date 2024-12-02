@@ -3,7 +3,7 @@
 # Stage 1: Build
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 COPY . /source
-WORKDIR /source/Web
+WORKDIR /source/HexSquared
 
 # Build the application for the target architecture
 ARG TARGETARCH
