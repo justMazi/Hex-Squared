@@ -8,12 +8,12 @@ using Serilog;
 
 namespace HexSquared;
 
-public class Startup(IConfiguration configuration)
+public class Startup(IConfiguration configuration,  IHostEnvironment environment)
 {
     private readonly IConfiguration _configuration = configuration;
 
     // This method gets called by the runtime. Use this method to add services to the container.
-    public void ConfigureServices(IServiceCollection services, IHostEnvironment environment)
+    public void ConfigureServices(IServiceCollection services)
     {
 
         if (environment.IsProduction())
