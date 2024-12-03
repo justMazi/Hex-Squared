@@ -1,20 +1,21 @@
+# syntax=docker/dockerfile:1
+
 # Stage 1: Build
-FROM --platform=linux/arm64 mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+COPY . /source
+WORKDIR /source/HexSquared
 
-WORKDIR /source
-COPY . .
-
-# Clear NuGet cache and restore dependencies with detailed logging
-RUN dotnet nuget locals all --clear
-RUN dotnet restore backend.sln --verbosity detailed
-
-# Build and publish the solution
-RUN dotnet publish backend.sln -c Release --self-contained false --use-current-runtime -o /app
+# Build the application for the target architecture
+ARG TARGETARCH
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet publish -a ${TARGETARCH/amd64/x64} --use-current-runtime --self-contained false -o /app
 
 # Stage 2: Runtime
-FROM --platform=linux/arm64 mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
-
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
+
+# Copy application files from the build stage
 COPY --from=build /app .
-EXPOSE 8000
+
+# Ensure the dotnet command runs correctly using the full path
 ENTRYPOINT ["dotnet", "HexSquared.dll"]
