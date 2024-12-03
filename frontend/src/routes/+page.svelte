@@ -6,6 +6,8 @@
 	import { Github } from 'lucide-svelte';
 	import toast from 'svelte-french-toast';
 
+	import hex2Logo from '$lib/assets/images/honeycomb.svg';
+
 	let gameCode = generateGameCode();
 	let link: string | null = null;
 
@@ -37,7 +39,7 @@
 
 <div class="flex min-h-screen flex-col items-center justify-center bg-gray-100">
 	<!-- Centered Image -->
-	<img src="../src/lib/assets/images/honeycomb.svg" alt="hex2" class="h-16 w-16" />
+	<img src={hex2Logo} alt="hex2" class="h-16 w-16" />
 
 	<!-- Centered Title -->
 	<h1 class="mt-8 text-center text-2xl font-bold text-gray-800">Hex Squared</h1>

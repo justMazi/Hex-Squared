@@ -70,6 +70,7 @@ public class AiPlayerService(IGameRepository gameRepository) : BackgroundService
                         }
                         else
                         {
+                            Task.Delay(1500);
                             var hexes = game.Hexagons.Where(h => !h.IsTaken && h.Q != 11 && h.R != 11 && h.S != 11).ToList();
                             bestMoveIndex = hexes[Random.Shared.Next(hexes.Count)].Index;
                         }
