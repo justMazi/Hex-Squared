@@ -23,6 +23,7 @@
 	let game: Game;
 
 	let players;
+	const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 	let isSessionMatch: boolean;
 
@@ -99,7 +100,7 @@
 
 	// Change player color
 	function selectColor(color: number) {
-		fetch(`http://localhost:5059/api/v1/game/${gameId}/pickColor?color=${color}`, {
+		fetch(`${API_BASE_URL}/api/v1/game/${gameId}/pickColor?color=${color}`, {
 			method: 'POST',
 			credentials: 'include'
 		})
@@ -121,7 +122,7 @@
 
 	function move(q: number, r: number, s: number) {
 		try {
-			fetch(`http://localhost:5059/api/v1/game/${gameId}/move?q=${q}&r=${r}&s=${s}`, {
+			fetch(`${API_BASE_URL}/api/v1/game/${gameId}/move?q=${q}&r=${r}&s=${s}`, {
 				method: 'POST',
 				credentials: 'include'
 			}).then(async (data) => {
@@ -139,7 +140,7 @@
 
 	async function fillWithAI() {
 		console.log('Filling remaining players with AI...');
-		fetch(`http://localhost:5059/api/v1/game/${gameId}/fill-with-ai`, { method: 'POST' })
+		fetch(`${API_BASE_URL}/api/v1/game/${gameId}/fill-with-ai`, { method: 'POST' })
 			.then((response) => response.json())
 			.then((data) => {
 				toast.success('AI players added:', data);
