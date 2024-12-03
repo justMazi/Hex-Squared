@@ -18,7 +18,7 @@ public class Startup(IConfiguration configuration)
 
         if (environment.IsProduction())
         {
-            services.AddSingleton<IHexConfiguration, ProductionHexConfiguration>()
+            services.AddSingleton<IHexConfiguration, ProductionHexConfiguration>();
         }
         else
         {
