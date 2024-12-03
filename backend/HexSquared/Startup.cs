@@ -2,6 +2,7 @@ using Application;
 using Application.IRepositories;
 using Application.Services.Implementations;
 using Application.Services.Interfaces;
+using HexSquared.Configuration;
 using Infrastructure.Repositories;
 using Serilog;
 
@@ -12,8 +13,18 @@ public class Startup(IConfiguration configuration)
     private readonly IConfiguration _configuration = configuration;
 
     // This method gets called by the runtime. Use this method to add services to the container.
-    public void ConfigureServices(IServiceCollection services)
+    public void ConfigureServices(IServiceCollection services, IHostEnvironment environment)
     {
+
+        if (environment.IsProduction())
+        {
+            services.AddSingleton<IHexConfiguration, ProductionHexConfiguration>()
+        }
+        else
+        {
+            services.AddSingleton<IHexConfiguration, LocalHexConfiguration>();
+        }
+        
         services.AddHostedService<AiPlayerService>();
         services.AddControllers();
         services.AddHealthChecks();

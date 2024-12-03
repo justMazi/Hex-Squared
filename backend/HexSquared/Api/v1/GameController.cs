@@ -4,6 +4,7 @@ using Application.IRepositories;
 using Application.Services.Interfaces;
 using Domain;
 using Domain.Players;
+using HexSquared.Configuration;
 using LanguageExt;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +12,7 @@ namespace HexSquared.Api.v1;
 
 [ApiController]
 [Route("api/v1/")]
-public class GameController(IGameService gameService, IGameRepository gameRepository) : ControllerBase
+public class GameController(IGameService gameService, IGameRepository gameRepository, IHexConfiguration configuration) : ControllerBase
 {
     private IGameService GameService { get; } = gameService;
     private IGameRepository GameRepository { get; } = gameRepository;
@@ -86,7 +87,7 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
                     IsEssential = true,
                     MaxAge = TimeSpan.FromDays(365),
                     Expires = DateTimeOffset.Now.AddDays(3),
-                    Domain = "localhost"
+                    Domain = configuration.HexCookieDomain
                 });
 
                 Console.WriteLine("adding hex session cookie");
