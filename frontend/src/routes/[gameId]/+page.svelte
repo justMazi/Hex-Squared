@@ -14,7 +14,7 @@
 	import { goto } from '$app/navigation';
 
 	const hexSize = 30;
-
+	$: radius = 6;
 	let isGameOver = false;
 	let currentPlayer: number | null = null;
 
@@ -81,11 +81,16 @@
 	// Fetch game data and update hexGrid
 	async function refreshGameData(id: string) {
 		try {
-			game = await Client.game(id);
+			const url = new URL($page.url.href); // Get the current page URL
+			const size = url.searchParams.get('size'); // Extract the 'size' query parameter
+
+			game = await Client.game(id, size);
 			if (game.winner) {
 				isGameOver = true;
 			}
+
 			players = game.players;
+			radius = game.radius + 1;
 			hexGrid = game.hexagons.map(({ q, r, s, owner, isTaken }) => ({
 				q,
 				r,
@@ -115,7 +120,8 @@
 					toast.error('Error selecting player color');
 				}
 
-				refreshGameData(gameId!);
+				// Perform full page reload
+				window.location.reload();
 			})
 			.catch((error) => toast.error('Error selecting player color:'));
 	}
@@ -199,6 +205,7 @@
 				{isSessionMatch}
 				{isGameOver}
 				browserPlayer={currentPlayer}
+				{radius}
 				onClick={() => move(q, r, s)}
 			/>
 		{/each}

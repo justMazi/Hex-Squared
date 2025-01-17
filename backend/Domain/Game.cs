@@ -11,18 +11,22 @@ public record Game(
     IReadOnlyList<Hex> Hexagons,
     CurrentMovePlayerIndex CurrentMovePlayerIndex,
     GameState GameState,
-    int? Winner = null)
+    int? Winner = null,
+    int Radius = 10)
 {
-    public Game(GameId id)
+    public Game(GameId id, int radius)
         : this(
             id,
             Players: new IPlayer[3],
-            Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(),
+            Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(radius),
             CurrentMovePlayerIndex: new CurrentMovePlayerIndex(0),
-            GameState: GameState.WaitingForPlayers)
+            GameState: GameState.WaitingForPlayers,
+            Radius: radius)
     {
     }
 
+    public IReadOnlyList<Hex> PlayableHexagons => Hexagons.Where(h => !h.IsTaken && Math.Abs(h.Q) != Radius+1 && Math.Abs(h.R) != Radius+1 && Math.Abs(h.S) != Radius+1).ToList();
+    
     public Option<Game> FillWithAi()
     {
         if (GameState is not GameState.WaitingForPlayers)
@@ -33,7 +37,7 @@ public record Game(
         return this with
         {
             Players = Players
-                .Select((p, index) => p ?? new AiPlayer(index+1))
+                .Select((p, index) => p ?? new PathFinderHeuristic(index+1))
                 .ToArray(),
             GameState = GameState.InProgress,
             CurrentMovePlayerIndex = new CurrentMovePlayerIndex(1)
@@ -119,10 +123,10 @@ public record Game(
     {
         return this with
         {
-            Hexagons = GameHelpers.GenerateInnerHexagonCoordinates(),
+            Hexagons = GameHelpers.GenerateInnerHexagonCoordinates(Radius),
             CurrentMovePlayerIndex = new CurrentMovePlayerIndex(1),
             GameState = GameState.InProgress,
-            Winner = null
+            Winner = null,
         };
     }
 
@@ -163,24 +167,24 @@ public record Game(
         return None;
     }
 
-    private bool IsStartingEdge(IPlayer player, Hex hex, int radius = 11)
+    private bool IsStartingEdge(IPlayer player, Hex hex)
     {
         return player.PlayerNum switch
         {
-            1 => hex.Q == -radius,          // Player 1 starts on the left edge (q == -radius)
-            2 => hex.R == -radius,          // Player 2 starts on the top edge (r == -radius)
-            3 => hex.S == -radius,          // Player 3 starts on the top-right edge (s == -radius)
+            1 => hex.Q == -Radius,          // Player 1 starts on the left edge (q == -radius)
+            2 => hex.R == -Radius,          // Player 2 starts on the top edge (r == -radius)
+            3 => hex.S == -Radius,          // Player 3 starts on the top-right edge (s == -radius)
             _ => throw new ArgumentException("Invalid player number")
         };
     }
 
-    private bool IsOppositeEdge(IPlayer player, Hex hex, int radius = 11)
+    private bool IsOppositeEdge(IPlayer player, Hex hex)
     {
         return player.PlayerNum switch
         {
-            1 => hex.Q == radius,           // Player 1 needs to connect to the right edge (q == radius)
-            2 => hex.R == radius,           // Player 2 needs to connect to the bottom edge (r == radius)
-            3 => hex.S == radius,           // Player 3 needs to connect to the bottom-left edge (s == radius)
+            1 => hex.Q == Radius,           // Player 1 needs to connect to the right edge (q == radius)
+            2 => hex.R == Radius,           // Player 2 needs to connect to the bottom edge (r == radius)
+            3 => hex.S == Radius,           // Player 3 needs to connect to the bottom-left edge (s == radius)
             _ => throw new ArgumentException("Invalid player number")
         };
     }

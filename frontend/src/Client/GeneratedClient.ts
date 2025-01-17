@@ -24,10 +24,15 @@ export class Client {
 	/**
 	 * @return Success
 	 */
-	game(id: string): Promise<Game> {
+	game(id: string, size?: number): Promise<Game> {
 		let url_ = this.baseUrl + '/api/v1/game/{id}';
 		if (id === undefined || id === null) throw new Error("The parameter 'id' must be defined.");
 		url_ = url_.replace('{id}', encodeURIComponent('' + id));
+
+		// Add the 'size' query parameter if it is provided
+		if (size !== undefined) {
+			url_ += `?size=${encodeURIComponent('' + size)}`;
+		}
 		url_ = url_.replace(/[?&]$/, '');
 
 		let options_: RequestInit = {
@@ -292,7 +297,6 @@ export class CurrentMovePlayerIndex implements ICurrentMovePlayerIndex {
 export interface ICurrentMovePlayerIndex {
 	value?: number;
 }
-
 export class Game implements IGame {
 	id?: GameId;
 	players?: IPlayer[] | undefined;
@@ -300,6 +304,7 @@ export class Game implements IGame {
 	currentMovePlayerIndex?: CurrentMovePlayerIndex;
 	gameState?: GameState;
 	winner?: number | undefined;
+	radius?: number; // Added radius
 
 	constructor(data?: IGame) {
 		if (data) {
@@ -325,6 +330,7 @@ export class Game implements IGame {
 				: <any>undefined;
 			this.gameState = _data['gameState'];
 			this.winner = _data['winner'];
+			this.radius = _data['radius']; // Initialize radius
 		}
 	}
 
@@ -351,6 +357,7 @@ export class Game implements IGame {
 			: <any>undefined;
 		data['gameState'] = this.gameState;
 		data['winner'] = this.winner;
+		data['radius'] = this.radius; // Include radius in JSON serialization
 		return data;
 	}
 }
@@ -362,6 +369,7 @@ export interface IGame {
 	currentMovePlayerIndex?: CurrentMovePlayerIndex;
 	gameState?: GameState;
 	winner?: number | undefined;
+	radius?: number; // Added radius
 }
 
 export class GameId implements IGameId {

@@ -33,9 +33,9 @@ public class GameRepository : IGameRepository
         return Games.GetValueOrDefault(gameId);
     }
 
-    public Game CreateNewGame(GameId gameId)
+    public Game CreateNewGame(GameId gameId, int radius)
     {
-        var game =  new Game(gameId);
+        var game =  new Game(gameId, radius);
         if (!Games.TryAdd(gameId, game))
         {
             throw new CantAddGameException(gameId);
@@ -44,10 +44,4 @@ public class GameRepository : IGameRepository
         return game;
     }
     
-    public void RestartGame(GameId gameId)
-    {
-        var game = new Game(gameId);
-        Games.TryGetValue(gameId, out var oldValue);
-        Games.TryUpdate(gameId, game, oldValue);
-    }
 }

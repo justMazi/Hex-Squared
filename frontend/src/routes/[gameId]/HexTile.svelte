@@ -10,10 +10,12 @@
 	export let browserPlayer;
 	export let onClick: () => void | undefined = () => {};
 	export let isSessionMatch: boolean;
+	export let radius: number;
 
 	let hexColor;
 	let hoverColor;
 	const fillColor = 'fill-gray-300';
+
 	// Reactive statement to update hoverColor based on browserPlayer
 	$: hoverColor =
 		browserPlayer === 1
@@ -32,13 +34,13 @@
 				? 'fill-green-600'
 				: owner === 3
 					? 'fill-blue-600'
-					: q === 11 || r === 11 || s === 11
+					: q === radius || r === radius || s === radius
 						? 'fill-gray-500'
 						: fillColor;
 
 	const cookies = Object.fromEntries(document.cookie.split('; ').map((c) => c.split('=')));
 
-	let isHoverable = owner === 0 && ![q, r, s].includes(11) && isSessionMatch;
+	let isHoverable = owner === 0 && ![q, r, s].includes(radius) && isSessionMatch;
 </script>
 
 <g

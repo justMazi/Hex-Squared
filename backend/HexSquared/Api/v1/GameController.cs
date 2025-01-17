@@ -18,10 +18,10 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
     private IGameRepository GameRepository { get; } = gameRepository;
 
     [HttpGet("game/{id}")]
-    public ActionResult<Game> GetGameState(string id)
+    public ActionResult<Game> GetGameState(string id, [FromQuery] int size)
     {
         var gameId = new GameId(id);
-        var game = GameService.GetOrCreate(gameId);
+        var game = GameService.GetOrCreate(gameId, size);
         return Ok(game);
     }
 

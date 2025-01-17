@@ -5,7 +5,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Github } from 'lucide-svelte';
 	import toast from 'svelte-french-toast';
-
 	import hex2Logo from '$lib/assets/images/honeycomb.svg';
 
 	let gameCode = generateGameCode();
@@ -35,6 +34,8 @@
 			toast.success('Game code regenerated');
 		}
 	}
+
+	let selectedSize = 7;
 </script>
 
 <div class="flex min-h-screen flex-col items-center justify-center bg-gray-100">
@@ -78,12 +79,25 @@
 					</Button>
 				</div>
 			</div>
+			<h1 class="pt-4 text-sm font-semibold text-gray-800">Select size</h1>
+
+			<div class="mx-auto flex items-center justify-center space-x-4 pt-2">
+				{#each [5, 7, 10] as size}
+					<img
+						src={hex2Logo}
+						alt="hex2"
+						class={`duration-300 w-${size} ` +
+							(selectedSize === size ? 'grayscale-0' : 'grayscale')}
+						on:click={() => (selectedSize = size)}
+					/>
+				{/each}
+			</div>
 		</CardContent>
 		<CardFooter class="mt-4 flex space-x-2">
 			<Button
 				variant="secondary"
-				class="w-full bg-gray-200 text-gray-800 hover:bg-gray-300"
-				on:click={() => (window.location.href = link || '')}
+				class=" w-full bg-gray-200 text-gray-800 hover:bg-gray-300"
+				on:click={() => (window.location.href = link + '?size=' + selectedSize || '')}
 			>
 				Enter the game
 			</Button>
