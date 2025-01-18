@@ -191,14 +191,12 @@
 			</Dialog.Description>
 		</Dialog.Header>
 		<Dialog.Footer>
-			{#if isSessionMatch}
-				<Button
-					on:click={() => {
-						client.reset(gameId);
-						isGameOver = false;
-					}}>Play Again</Button
-				>
-			{/if}
+			<Button
+				on:click={() => {
+					client.reset(gameId);
+					isGameOver = false;
+				}}>Play Again</Button
+			>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
@@ -253,7 +251,7 @@
 			</button>
 		{/if}
 
-		{#if isGameOver && isSessionMatch}
+		{#if isGameOver}
 			<Button
 				class="h-12 font-semibold"
 				on:click={() => {
