@@ -17,11 +17,12 @@
 	$: radius = 6;
 	let isGameOver = false;
 	let currentPlayer: number | null = null;
-
+	let score = [3];
 	let hexGrid = [];
 	let gameId: string;
 	let game: Game;
 
+	let gameState;
 	let players;
 	const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -90,6 +91,8 @@
 			}
 
 			players = game.players;
+			gameState = game.gameState;
+			score = game.players.map((p) => p.numberOfWins);
 			radius = game.radius + 1;
 			hexGrid = game.hexagons.map(({ q, r, s, owner, isTaken }) => ({
 				q,
@@ -122,6 +125,17 @@
 
 				// Perform full page reload
 				window.location.reload();
+			})
+			.catch((error) => toast.error('Error selecting player color:'));
+	}
+
+	function concede() {
+		fetch(`${API_BASE_URL}/api/v1/game/${gameId}/concede`, {
+			method: 'POST',
+			credentials: 'include'
+		})
+			.then(async (data) => {
+				toast.success('You gave up! :(');
 			})
 			.catch((error) => toast.error('Error selecting player color:'));
 	}
@@ -215,7 +229,7 @@
 		{#if players && players.every((p) => p !== null)}
 			{#each Array(3) as _, i}
 				<button
-					class="rounded px-4 py-2 font-bold text-white"
+					class="h-12 rounded px-4 py-2 font-bold text-white"
 					class:bg-red-500={i === 0 && !(players && isNullOrEmpty(players[i]))}
 					class:bg-green-500={i === 1 && !(players && isNullOrEmpty(players[i]))}
 					class:bg-blue-500={i === 2 && !(players && isNullOrEmpty(players[i]))}
@@ -231,16 +245,17 @@
 
 			<!-- Button to fill remaining players with AI -->
 			<button
-				class="rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700 disabled:hover:bg-gray-500"
+				class="h-12 rounded bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-700 disabled:hover:bg-gray-500"
 				on:click={fillWithAI}
 				disabled={players?.every((p) => p?.playerNum)}
 			>
 				Fill with AI
 			</button>
 		{/if}
+
 		{#if isGameOver && isSessionMatch}
 			<Button
-				class=""
+				class="h-12 font-semibold"
 				on:click={() => {
 					client.reset(gameId);
 					refreshGameData(gameId);
@@ -248,10 +263,37 @@
 				}}>Play Again</Button
 			>
 		{/if}
+
+		{#if isSessionMatch && !isGameOver && gameState == 1}
+			<Button
+				class="h-12 bg-red-700 font-semibold hover:bg-red-600"
+				on:click={() => {
+					concede();
+				}}>Concede</Button
+			>
+		{/if}
+	</div>
+
+	<div class="absolute left-4 top-20 flex flex-col gap-1">
+		{#if score && score.every((s) => s !== undefined)}
+			<h1 class="font-semibold">Scores</h1>
+			{#each Array(3) as _, j}
+				<div class="flex items-center gap-1">
+					<div
+						class="h-2 w-2 rounded-full"
+						class:bg-red-500={j === 0}
+						class:bg-green-500={j === 1}
+						class:bg-blue-500={j === 2}
+					></div>
+					<p class="text-center">{score[j]}</p>
+				</div>
+			{/each}
+		{/if}
 	</div>
 </div>
 
-<!-- <pre>{JSON.stringify(players)}</pre>
+<!--
+<pre>{JSON.stringify(score)}</pre>
 
 {#if game && game.winner}
 	{game.winner}

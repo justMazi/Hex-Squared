@@ -18,6 +18,11 @@ public class GameRepository : IGameRepository
         return Games.Values.Where(g => g.GameState == GameState.InProgress && g.Players.Any(p => p is AiPlayer)).ToList();
     }
 
+    public List<Game?> GetAllGames()
+    {
+        return Games.Values.ToList();
+    }
+
     public bool SaveGame(Game game)
     {
         return Games.TryUpdate(game.Id, game, Games.GetValueOrDefault(game.Id));

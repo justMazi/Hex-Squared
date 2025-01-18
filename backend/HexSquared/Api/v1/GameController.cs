@@ -136,6 +136,43 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
             return Ok();
         }, BadRequest);
     }
+    
+    [HttpPost("game/{id}/concede")]
+    public IActionResult Concede(string id)
+    {
+        var gameId = new GameId(id);
+        var game = GameService.GetOrCreate(gameId);
+
+        // Extract session data to identify the player
+        HttpContext.Request.Cookies.TryGetValue("hex_session", out var session);
+
+        if (session == null)
+        {
+            return BadRequest("No session found. Player identification failed.");
+        }
+
+        var sessionData = ExtractSession(session);
+        
+        HttpContext.Response.Cookies.Delete("hex_session");
+
+        return sessionData.Match<IActionResult>(
+            Some: data =>
+            {
+                // Identify the player who is conceding
+                var player = new HumanPlayer(data.PlayerNumber);
+
+                // Perform the concede operation on the game
+                var updatedGame = game.Concede(player);
+
+                // Save the updated game state
+                GameRepository.SaveGame(updatedGame);
+
+                return Ok();
+            },
+            None: () => BadRequest("Invalid session data.")
+        );
+    }
+
 
     [HttpPost("game/{id}/fill-with-ai")]
     public IActionResult FillWithAi(string id, [FromQuery] int index)

@@ -7,7 +7,7 @@ namespace Domain;
 
 public record Game(
     GameId Id,
-    IPlayer[] Players,
+    Player[] Players,
     IReadOnlyList<Hex> Hexagons,
     CurrentMovePlayerIndex CurrentMovePlayerIndex,
     GameState GameState,
@@ -17,7 +17,7 @@ public record Game(
     public Game(GameId id, int radius)
         : this(
             id,
-            Players: new IPlayer[3],
+            Players: new Player[3],
             Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(radius),
             CurrentMovePlayerIndex: new CurrentMovePlayerIndex(0),
             GameState: GameState.WaitingForPlayers,
@@ -26,6 +26,7 @@ public record Game(
     }
 
     public IReadOnlyList<Hex> PlayableHexagons => Hexagons.Where(h => !h.IsTaken && Math.Abs(h.Q) != Radius+1 && Math.Abs(h.R) != Radius+1 && Math.Abs(h.S) != Radius+1).ToList();
+    public DateTime LastChange = DateTime.Now;
     
     public Option<Game> FillWithAi()
     {
@@ -45,7 +46,7 @@ public record Game(
     }
 
     
-    public Option<Game> PickColor(IPlayer player, int color)
+    public Option<Game> PickColor(Player player, int color)
     {
         if (!Players.Contains(null))
             return None;
@@ -77,8 +78,8 @@ public record Game(
             Players = updatedPlayers
         });    
     }
-
-    public Option<Game> Move(IPlayer player, Hex hexagon)
+    
+    public Option<Game> Move(Player player, Hex hexagon)
     {
         var index = hexagon.Index;
         if (GameState is not GameState.InProgress || player.PlayerNum != CurrentMovePlayerIndex.Value)
@@ -91,23 +92,35 @@ public record Game(
         var updatedHexagons = Hexagons
             .Select(h => h.Index == index ? h.SetPlayer(player.PlayerNum) : h)
             .ToImmutableList();
-
+        
         var newPlayerIndex = CurrentMovePlayerIndex.Increment();
-
+        
+        while (Players[newPlayerIndex-1].GaveUp)
+        {
+            newPlayerIndex = newPlayerIndex.Increment();
+        }
+        
         var isDraw = IsDraw(updatedHexagons, Players);
 
         var won = TrySetWinState(updatedHexagons, player);
+
+        if (won.IsSome)
+        {
+            Players[player.PlayerNum-1].NumberOfWins++;
+        }
+        
+        LastChange = DateTime.Now;
         
         return Some(this with
         {
             GameState = isDraw || won.IsSome ? GameState.Finished : GameState, 
-            Winner = isDraw ? -1 : won.IsSome ? player.PlayerNum : null, 
+            Winner = isDraw ? -1 : won.IsSome ? player.PlayerNum : null,
             Hexagons = updatedHexagons,
             CurrentMovePlayerIndex = newPlayerIndex
         });
     }
 
-    private bool IsDraw(IEnumerable<Hex> hexagons, IPlayer[] players)
+    private bool IsDraw(IEnumerable<Hex> hexagons, Player[] players)
     {
         return players.All(p =>
         {
@@ -125,12 +138,12 @@ public record Game(
         {
             Hexagons = GameHelpers.GenerateInnerHexagonCoordinates(Radius),
             CurrentMovePlayerIndex = new CurrentMovePlayerIndex(1),
-            GameState = GameState.InProgress,
+            GameState = Players.All(p => !p.GaveUp) ? GameState.InProgress : GameState.Halted,
             Winner = null,
         };
     }
 
-    private Option<Game> TrySetWinState(IEnumerable<Hex> hexagons, IPlayer player)
+    private Option<Game> TrySetWinState(IEnumerable<Hex> hexagons, Player player)
     {
         System.Collections.Generic.HashSet<Hex> visited = new();
         Queue<Hex> toVisit = new();
@@ -167,7 +180,7 @@ public record Game(
         return None;
     }
 
-    private bool IsStartingEdge(IPlayer player, Hex hex)
+    private bool IsStartingEdge(Player player, Hex hex)
     {
         return player.PlayerNum switch
         {
@@ -178,7 +191,7 @@ public record Game(
         };
     }
 
-    private bool IsOppositeEdge(IPlayer player, Hex hex)
+    private bool IsOppositeEdge(Player player, Hex hex)
     {
         return player.PlayerNum switch
         {
@@ -206,5 +219,56 @@ public record Game(
             }
         }
     }
+
+    public Game Concede(HumanPlayer player)
+    {
+        var concedingPlayerIndex = Players.ToList().FindIndex(p => p?.PlayerNum == player.PlayerNum);
+        if (concedingPlayerIndex == -1)
+        {
+            throw new InvalidOperationException("Player not found in the game.");
+        }
+
+        // Remove the conceding player
+        var updatedPlayers = Players.ToArray();
+        updatedPlayers[concedingPlayerIndex].GaveUp = true;
+
+        if (updatedPlayers.All(p => p.GaveUp))
+        {
+            return this with
+            {
+                GameState = GameState.Finished,
+            };        
+        }
+
+        Domain.CurrentMovePlayerIndex newPlayerIndex = CurrentMovePlayerIndex;
+        if (CurrentMovePlayerIndex.Value == concedingPlayerIndex+1)
+        {
+            while (Players[newPlayerIndex-1].GaveUp)
+            {
+                newPlayerIndex = CurrentMovePlayerIndex.Increment();
+            }
+        }
+
+        var remainingPlayers = updatedPlayers.Where(p => !p.GaveUp).ToList();
+        if (remainingPlayers.Count == 1)
+        {
+            var winner = remainingPlayers.First();
+            return this with
+            {
+                Players = new Player[Players.Length],
+                Hexagons = GameHelpers.GenerateInnerHexagonCoordinates(Radius),
+                CurrentMovePlayerIndex = new CurrentMovePlayerIndex(0),
+                GameState = GameState.WaitingForPlayers,
+                Winner = winner?.PlayerNum
+            };
+        }
+
+        return this with
+        {
+            Players = updatedPlayers,
+            CurrentMovePlayerIndex = newPlayerIndex
+        };
+    }
+
 
 }

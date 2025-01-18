@@ -26,6 +26,7 @@ public class Startup(IConfiguration configuration,  IHostEnvironment environment
         }
         
         services.AddHostedService<AiPlayerService>();
+        services.AddHostedService<GameCleanupService>();
         services.AddControllers();
         services.AddHealthChecks();
         services.AddSwaggerGen();

@@ -30,7 +30,7 @@ export class Client {
 		url_ = url_.replace('{id}', encodeURIComponent('' + id));
 
 		// Add the 'size' query parameter if it is provided
-		if (size !== undefined) {
+		if (size !== null && size !== undefined) {
 			url_ += `?size=${encodeURIComponent('' + size)}`;
 		}
 		url_ = url_.replace(/[?&]$/, '');
@@ -321,6 +321,7 @@ export class Game implements IGame {
 				this.players = [] as any;
 				for (let item of _data['players']) this.players!.push(IPlayer.fromJS(item));
 			}
+
 			if (Array.isArray(_data['hexagons'])) {
 				this.hexagons = [] as any;
 				for (let item of _data['hexagons']) this.hexagons!.push(Hex.fromJS(item));
@@ -461,6 +462,7 @@ export interface IHex {
 
 export class IPlayer implements IIPlayer {
 	readonly playerNum?: number;
+	numberOfWins?: number; // Add this field
 
 	constructor(data?: IIPlayer) {
 		if (data) {
@@ -473,6 +475,7 @@ export class IPlayer implements IIPlayer {
 	init(_data?: any) {
 		if (_data) {
 			(<any>this).playerNum = _data['playerNum'];
+			this.numberOfWins = _data['numberOfWins']; // Initialize numberOfWins
 		}
 	}
 
@@ -486,12 +489,14 @@ export class IPlayer implements IIPlayer {
 	toJSON(data?: any) {
 		data = typeof data === 'object' ? data : {};
 		data['playerNum'] = this.playerNum;
+		data['numberOfWins'] = this.numberOfWins; // Include numberOfWins in serialization
 		return data;
 	}
 }
 
 export interface IIPlayer {
 	playerNum?: number;
+	numberOfWins?: number; // Add this field
 }
 
 export class ApiException extends Error {

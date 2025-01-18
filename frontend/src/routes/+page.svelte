@@ -35,7 +35,7 @@
 		}
 	}
 
-	let selectedSize = 7;
+	let selectedSize = 6;
 </script>
 
 <div class="flex min-h-screen flex-col items-center justify-center bg-gray-100">
@@ -79,15 +79,15 @@
 					</Button>
 				</div>
 			</div>
-			<h1 class="pt-4 text-sm font-semibold text-gray-800">Select size</h1>
+			<h1 class="pt-4 text-sm font-semibold text-gray-800">Select board size</h1>
 
 			<div class="mx-auto flex items-center justify-center space-x-4 pt-2">
-				{#each [5, 7, 10] as size}
+				{#each [4, 6, 10] as size}
 					<img
 						src={hex2Logo}
 						alt="hex2"
-						class={`duration-300 w-${size} ` +
-							(selectedSize === size ? 'grayscale-0' : 'grayscale')}
+						class={`max-h-20 duration-300 ${selectedSize === size ? 'grayscale-0' : 'grayscale'}`}
+						style="height: {size * 6}px"
 						on:click={() => (selectedSize = size)}
 					/>
 				{/each}

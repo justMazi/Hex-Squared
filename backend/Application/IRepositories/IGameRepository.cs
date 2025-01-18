@@ -8,6 +8,7 @@ public interface IGameRepository
 
     public Game CreateNewGame(GameId gameId, int radius);
     public List<Game?> GetAllInProgressGamesWithAi();
+    public List<Game?> GetAllGames();
 
     public bool SaveGame(Game game);
 
