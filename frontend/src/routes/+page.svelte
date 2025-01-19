@@ -6,14 +6,20 @@
 	import { Github } from 'lucide-svelte';
 	import toast from 'svelte-french-toast';
 	import hex2Logo from '$lib/assets/images/honeycomb.svg';
+	const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 	let gameCode = generateGameCode();
 	let link: string | null = null;
-
-	onMount(() => {
+	let aiTypes = [];
+	let selectedAI = null;
+	onMount(async () => {
 		if (typeof window !== 'undefined') {
 			link = `${window.location.origin}/${gameCode}`;
 		}
+
+		const res = await fetch(`${API_BASE_URL}/api/v1/AI`);
+		aiTypes = await res.json();
+		selectedAI = aiTypes[0];
 	});
 
 	const copyToClipboard = () => {
@@ -79,8 +85,8 @@
 					</Button>
 				</div>
 			</div>
-			<h1 class="pt-4 text-sm font-semibold text-gray-800">Select board size</h1>
 
+			<h1 class="pt-4 text-sm font-semibold text-gray-800">Select board size</h1>
 			<div class="mx-auto flex items-center justify-center space-x-4 pt-2">
 				{#each [4, 6, 10] as size}
 					<img
@@ -92,12 +98,31 @@
 					/>
 				{/each}
 			</div>
+
+			<div class="mx-auto w-full max-w-sm">
+				<label class="mb-2 block pt-4 text-sm font-semibold text-gray-800">
+					Select AI to use in this game
+				</label>
+				<div class="relative">
+					<select
+						class="block w-full rounded border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring focus:ring-blue-200"
+						bind:value={selectedAI}
+					>
+						{#each aiTypes as type}
+							<option value={type}>{type}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
 		</CardContent>
 		<CardFooter class="mt-4 flex space-x-2">
 			<Button
 				variant="secondary"
-				class=" w-full bg-gray-200 text-gray-800 hover:bg-gray-300"
-				on:click={() => (window.location.href = link + '?size=' + selectedSize || '')}
+				class="w-full bg-gray-200 text-gray-800 hover:bg-gray-300"
+				on:click={() =>
+					(window.location.href = `${link}?size=${selectedSize || ''}&aiType=${encodeURIComponent(
+						selectedAI || ''
+					)}`)}
 			>
 				Enter the game
 			</Button>

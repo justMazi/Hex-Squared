@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Application.IRepositories;
 using Application.Services.Interfaces;
@@ -18,10 +17,10 @@ public class GameController(IGameService gameService, IGameRepository gameReposi
     private IGameRepository GameRepository { get; } = gameRepository;
 
     [HttpGet("game/{id}")]
-    public ActionResult<Game> GetGameState(string id, [FromQuery] int size)
+    public IActionResult GetGameState(string id, [FromQuery] int? size = null, [FromQuery] string? aiType = null)
     {
         var gameId = new GameId(id);
-        var game = GameService.GetOrCreate(gameId, size);
+        var game = GameService.GetOrCreate(gameId, size, aiType is not null ? InheritorHelpers.GetInheritors<AiPlayer>().FirstOrDefault(t => t.Name == aiType) : typeof(MctsPlayer));
         return Ok(game);
     }
 

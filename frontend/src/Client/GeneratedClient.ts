@@ -24,15 +24,23 @@ export class Client {
 	/**
 	 * @return Success
 	 */
-	game(id: string, size?: number): Promise<Game> {
+	game(id: string, size?: number, ai?: string): Promise<Game> {
 		let url_ = this.baseUrl + '/api/v1/game/{id}';
 		if (id === undefined || id === null) throw new Error("The parameter 'id' must be defined.");
 		url_ = url_.replace('{id}', encodeURIComponent('' + id));
 
-		// Add the 'size' query parameter if it is provided
-		if (size !== null && size !== undefined) {
-			url_ += `?size=${encodeURIComponent('' + size)}`;
+		// Add query parameters for size and AI type if provided
+		let queryParams = [];
+		if (size !== undefined) {
+			queryParams.push(`size=${encodeURIComponent('' + size)}`);
 		}
+		if (ai !== undefined) {
+			queryParams.push(`aiType=${encodeURIComponent('' + ai)}`);
+		}
+		if (queryParams.length > 0) {
+			url_ += `?${queryParams.join('&')}`;
+		}
+
 		url_ = url_.replace(/[?&]$/, '');
 
 		let options_: RequestInit = {
@@ -58,7 +66,7 @@ export class Client {
 				let result200: any = null;
 				let resultData200 =
 					_responseText === '' ? null : JSON.parse(_responseText, this.jsonParseReviver);
-				result200 = Game.fromJS(resultData200);
+				result200 = Game.fromJS(resultData200); // AiType will now be included
 				return result200;
 			});
 		} else if (status !== 200 && status !== 204) {
@@ -304,7 +312,8 @@ export class Game implements IGame {
 	currentMovePlayerIndex?: CurrentMovePlayerIndex;
 	gameState?: GameState;
 	winner?: number | undefined;
-	radius?: number; // Added radius
+	radius?: number;
+	aiType?: string; // Added AiType as a string
 
 	constructor(data?: IGame) {
 		if (data) {
@@ -321,7 +330,6 @@ export class Game implements IGame {
 				this.players = [] as any;
 				for (let item of _data['players']) this.players!.push(IPlayer.fromJS(item));
 			}
-
 			if (Array.isArray(_data['hexagons'])) {
 				this.hexagons = [] as any;
 				for (let item of _data['hexagons']) this.hexagons!.push(Hex.fromJS(item));
@@ -331,7 +339,8 @@ export class Game implements IGame {
 				: <any>undefined;
 			this.gameState = _data['gameState'];
 			this.winner = _data['winner'];
-			this.radius = _data['radius']; // Initialize radius
+			this.radius = _data['radius'];
+			this.aiType = _data['aiType']; // Initialize AiType
 		}
 	}
 
@@ -358,7 +367,8 @@ export class Game implements IGame {
 			: <any>undefined;
 		data['gameState'] = this.gameState;
 		data['winner'] = this.winner;
-		data['radius'] = this.radius; // Include radius in JSON serialization
+		data['radius'] = this.radius;
+		data['aiType'] = this.aiType; // Serialize AiType
 		return data;
 	}
 }
@@ -370,7 +380,8 @@ export interface IGame {
 	currentMovePlayerIndex?: CurrentMovePlayerIndex;
 	gameState?: GameState;
 	winner?: number | undefined;
-	radius?: number; // Added radius
+	radius?: number;
+	aiType?: string; // Added AiType as a string
 }
 
 export class GameId implements IGameId {

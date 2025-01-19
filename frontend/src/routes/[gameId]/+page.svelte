@@ -21,9 +21,10 @@
 	let hexGrid = [];
 	let gameId: string;
 	let game: Game;
-
 	let gameState;
 	let players;
+	let selectedAI: string;
+
 	const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 	let isSessionMatch: boolean;
@@ -84,8 +85,9 @@
 		try {
 			const url = new URL($page.url.href); // Get the current page URL
 			const size = url.searchParams.get('size'); // Extract the 'size' query parameter
+			const ai = url.searchParams.get('aiType'); // Extract the 'ai' query parameter
 
-			game = await Client.game(id, size);
+			game = await Client.game(id, size, ai); // Pass both size and AI type
 			if (game.winner) {
 				isGameOver = true;
 			}
@@ -94,6 +96,7 @@
 			gameState = game.gameState;
 			score = game.players.map((p) => p.numberOfWins);
 			radius = game.radius + 1;
+			selectedAI = game.aiType;
 			hexGrid = game.hexagons.map(({ q, r, s, owner, isTaken }) => ({
 				q,
 				r,
@@ -247,7 +250,7 @@
 				on:click={fillWithAI}
 				disabled={players?.every((p) => p?.playerNum)}
 			>
-				Fill with AI
+				Fill with AI ({selectedAI.split('.').pop()})
 			</button>
 		{/if}
 

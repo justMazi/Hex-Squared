@@ -38,9 +38,9 @@ public class GameRepository : IGameRepository
         return Games.GetValueOrDefault(gameId);
     }
 
-    public Game CreateNewGame(GameId gameId, int radius)
+    public Game CreateNewGame(GameId gameId, int? radius, Type? aiType)
     {
-        var game =  new Game(gameId, radius);
+        var game =  new Game(gameId, radius, aiType);
         if (!Games.TryAdd(gameId, game))
         {
             throw new CantAddGameException(gameId);

@@ -11,17 +11,20 @@ public record Game(
     IReadOnlyList<Hex> Hexagons,
     CurrentMovePlayerIndex CurrentMovePlayerIndex,
     GameState GameState,
-    int? Winner = null,
-    int Radius = 10)
+    string? AiType,
+    int Radius,
+    int? Winner = null
+    )
 {
-    public Game(GameId id, int radius)
+    public Game(GameId id, int? radius, Type? aiType)
         : this(
             id,
             Players: new Player[3],
-            Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(radius),
+            Hexagons: GameHelpers.GenerateInnerHexagonCoordinates(radius ?? 10),
             CurrentMovePlayerIndex: new CurrentMovePlayerIndex(0),
             GameState: GameState.WaitingForPlayers,
-            Radius: radius)
+            AiType: aiType.FullName,
+            Radius: radius ?? 10)
     {
     }
 
@@ -34,11 +37,13 @@ public record Game(
         {
             return None;
         }
+
+        var type = Type.GetType(AiType);
         
         return this with
         {
             Players = Players
-                .Select((p, index) => p ?? new PathFinderHeuristic(index+1))
+                .Select((p, index) => p ?? Activator.CreateInstance(type, index + 1) as Player)
                 .ToArray(),
             GameState = GameState.InProgress,
             CurrentMovePlayerIndex = new CurrentMovePlayerIndex(1)

@@ -17,7 +17,7 @@ public class GameCleanupService(IGameRepository gameRepository) : BackgroundServ
             try
             {
                 var gamesToDelete = gameRepository.GetAllGames()
-                    .Where(g => g.Players.All(p => p.GaveUp) || g.LastChange.AddDays(1) < DateTime.Now).ToList();
+                    .Where(g => g != null && g.Players.All(p => p is not null) && (g.Players.All(p => p.GaveUp) || g.LastChange.AddDays(1) < DateTime.Now)).ToList();
                 foreach (var game in gamesToDelete)
                 {
                     Console.WriteLine($"Game deleted with id {game.Id}");

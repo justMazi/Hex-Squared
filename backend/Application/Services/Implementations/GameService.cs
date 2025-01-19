@@ -1,6 +1,7 @@
 ﻿using Application.IRepositories;
 using Application.Services.Interfaces;
 using Domain;
+using Domain.Players;
 using Framework;
 using LanguageExt;
 
@@ -10,12 +11,13 @@ public class GameService(IGameRepository gameRepository) : IGameService
 {
     private IGameRepository GameRepository { get; } = gameRepository;
 
-    public Game GetOrCreate(GameId gameId, int radius = 10)
+    public Game GetOrCreate(GameId gameId, int? radius = null, Type? aiType = null)
     {
+        aiType ??= typeof(MctsPlayer);
         var game = GameRepository.GetById(gameId).ToOption();
         return game.Match(
             Some: existingGame => existingGame,
-            None: () => GameRepository.CreateNewGame(gameId, radius)
+            None: () => GameRepository.CreateNewGame(gameId, radius, aiType)
         );
     }
 
