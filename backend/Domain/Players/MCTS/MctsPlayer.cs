@@ -1,89 +1,116 @@
 ﻿using System.Diagnostics;
-using Domain;
-using Domain.Players;
 
-namespace MonteCarloConsole;
+namespace Domain.Players.MCTS;
 
+public class MctsNode
+{
+    public readonly byte[,] Board = new byte[7, 7];
+    public int TotalReward = 0;
+    public int TotalVisits = 0;
+    public readonly List<MctsNode> Children = new();
+    public readonly MctsNode? Parent = null;
+    public bool IsTerminal { get; set; }
+    public byte PlayerValue { get; set; }
 
-    public struct PlayerNum
+    public void IncreasePlayerValue()
     {
-        public PlayerNum()
-        {
-        }
-
-        public byte Value { get; private set; } = 1;
-
-        public void Increase()
-        {
-            Value = (byte)((Value % 3) + 1);
-        }
+        PlayerValue = (byte)((PlayerValue % 3) + 1);
     }
 
-    public class MctsNode
+    public MctsNode(byte[,] board, MctsNode? parent, byte playerNum)
     {
-        public readonly byte[,] Board = new byte[7, 7];
-        public int TotalReward = 0;
-        public int TotalVisits = 0;
-        public readonly List<MctsNode> Children = new();
-        public readonly MctsNode? Parent = null;
-        public bool IsTerminal { get; set; }
-        public PlayerNum PlayerValue { get; set; }
+        Board = board;
+        Parent = parent;
+        PlayerValue = playerNum;
+    }
+}
 
-        public MctsNode(byte[,] board, MctsNode? parent, PlayerNum playerNum)
+
+
+
+public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
+{
+    public override Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
+    {
+        var playableIndexes = new HashSet<int>(game.PlayableHexagons.Select(hex => hex.Index));
+
+        var hexes = game.Hexagons.Select(h =>
         {
-            Board = board;
-            Parent = parent;
-            PlayerValue = playerNum;
-            PlayerValue.Increase();
+            if (!playableIndexes.Contains(h.Index) && h.Owner == 0)
+            {
+                return h.SetPlayer(5);
+            }
+
+            return h;
+        }).ToList();
+        
+        
+        
+        var root = new MctsNode(game.To2DArray(hexes), null, (byte)game.CurrentMovePlayerIndex.Value);
+
+        game.PrintRaw2DArray(root.Board);
+        
+        var clock = new Stopwatch();
+        clock.Start();
+
+        const int iterations = 50000;
+        
+        var res  = MCTS(root, iterations);
+
+        clock.Stop();
+        Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
+        Console.WriteLine($"Run {iterations} iterations");
+        Console.WriteLine($"Total visits / total rewards  = {res.TotalReward}/{res.TotalVisits}");
+        Console.WriteLine();
+        PrintMaxDepth(res);
+        var final = root.Children.MaxBy(child => child.TotalVisits);
+
+        var (col, row) = FindNewlyAddedSpace(root.Board, final.Board);
+        
+        // Convert 2D indices back to axial coordinates
+        int r = row - game.Radius - 1; // Reverse the positive shift
+        int q = col - game.Radius - 1; // Reverse the positive shift
+        int s = -r - q;           // Ensure axial coordinate constraint R + Q + S = 0
+
+        var a = (r, s, q);
+        
+        game.PrintRaw2DArray(final.Board);
+
+        Console.WriteLine();
+        
+        var selectedHex = game.PlayableHexagons.FirstOrDefault(h => h.Q == r && h.R == q && h.S == s);
+
+        if (selectedHex is null)
+        {
+            throw new ApplicationException("SNAZIM SE VYBRAT NECO CO NENI V PLAYABLE HEXAGONS");
         }
+        
+        return Task.FromResult(selectedHex.Index);
     }
 
 
 
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            var radius = 5;
-            var game = new Game(new GameId("absd"), radius, typeof(PathFinderHeuristic));
-            
-            
-            var root = new MctsNode(game.To2DArray(), null, new PlayerNum());
 
-            var clock = new Stopwatch();
-            clock.Start();
-
-            const int iterations = 10000;
-
-            
-            Program program = new Program();
-            var res  = program.MCTS(root, iterations);
-
-            clock.Stop();
-            Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
-            Console.WriteLine($"Ran {iterations} iterations");
-            Console.WriteLine($"Total visits / total rewards  = {res.TotalReward}/{res.TotalVisits}");
-            Console.WriteLine();
-            PrintMaxDepth(res);
-            var final = root.Children.MaxBy(child => child.TotalVisits);
-            game.PrintRaw2DArray(final.Board);
-
-            var coords = FindNewlyAddedSpace(root.Board, final.Board);
-        }
-        
-        
         static (int i, int j) FindNewlyAddedSpace(byte[,] initialBoard, byte[,] finalBoard)
         {
+            (int i, int j)? res = null;
             for (int i = 0; i < initialBoard.GetLength(0); i++)
             {
                 for (int j = 0; j < initialBoard.GetLength(1); j++)
                 {
                     if (initialBoard[i, j] != finalBoard[i, j])
                     {
-                        return (i, j);
+                        if (res is not null)
+                        {
+                            throw new Exception("TADY TO NEMELO NAJIT DALSI ZMENU");
+                        }
+
+                        res = (i, j);
                     }
                 }
             }
+
+            return ((int i, int j))res;
 
             throw new Exception("there is no diference in the boards");
         }
@@ -115,7 +142,7 @@ namespace MonteCarloConsole;
         
         private MctsNode MCTS(MctsNode root, int iterations)
         {
-            var whoShouldWin = root.PlayerValue.Value;
+            var whoShouldWin = root.PlayerValue;
             
             Expand(root);
             root.Children.ForEach(n =>
@@ -192,8 +219,8 @@ namespace MonteCarloConsole;
             foreach (var position in untakenPositions)
             {
                 (int row, int col) = position;
-                simulationBoard[row, col] = currentPlayer.Value;
-                currentPlayer.Increase();
+                simulationBoard[row, col] = currentPlayer;
+                currentPlayer = (byte)((currentPlayer % 3) + 1);
             }
 
             PathFinder pathFinder = new PathFinder();
@@ -282,14 +309,14 @@ namespace MonteCarloConsole;
                     if (node.Board[i, j] == 0) // Check if the space is unoccupied
                     {
                         var newBoard = (byte[,])node.Board.Clone();
-                        newBoard[i, j] = node.PlayerValue.Value;
-                        children.Add(new MctsNode(newBoard, node, node.PlayerValue));
+                        newBoard[i, j] = node.PlayerValue;
+                        
+                        var newPlayerVal = (byte)((node.PlayerValue % 3) + 1);
+                        children.Add(new MctsNode(newBoard, node, newPlayerVal));
                     }
                 }
             }
 
             return children;
         }
-
-    }
-
+}

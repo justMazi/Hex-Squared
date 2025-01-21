@@ -116,6 +116,7 @@ public record Game(
         
         LastChange = DateTime.Now;
         
+        
         return Some(this with
         {
             GameState = isDraw || won.IsSome ? GameState.Finished : GameState, 
@@ -275,5 +276,64 @@ public record Game(
         };
     }
 
+    public byte[,] To2DArray()
+    {
+        return To2DArray(Hexagons);
+    }
+    
 
+    public byte[,] To2DArray(IReadOnlyList<Hex> updatedHexagons)
+    {
+        // Calculate array dimensions
+        int size = 2 * Radius + 3; // Ensure the board size matches the hexagonal bounds
+        byte[,] array = new byte[size, size];
+
+        // Initialize the array with -1 (unplayable spaces)
+        for (int i = 0; i < size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                array[i, j] = 255; // Using 255 to represent -1 since byte cannot hold negative values
+            }
+        }
+        // Map axial coordinates to array indices
+        foreach (var hex in updatedHexagons)
+        {
+            int row = hex.R + Radius+1; // Shift R coordinate to positive indices
+            int col = hex.Q + Radius+1; // Shift Q coordinate to positive indices
+
+            // Check bounds to ensure no index out of range occurs
+            if (row >= 0 && row < size && col >= 0 && col < size)
+            {
+                array[row, col] = (byte)hex.Owner; // Mark playable hexes with 0
+            }
+            else
+            {
+                throw new Exception($"Hex out of bounds: Q={hex.Q}, R={hex.R}, Computed Row={row}, Col={col}");
+            }
+        }
+        
+        
+        // PrintRaw2DArray(array);
+
+        
+        return array;
+    }
+
+    
+    public void PrintRaw2DArray(byte[,] array)
+    {
+        for (int i = 0; i < array.GetLength(0); i++)
+        {
+            for (int j = 0; j < array.GetLength(1); j++)
+            {
+                // Use fixed-width formatting to align numbers
+                Console.Write($"{(array[i, j] == 255 ? -1 : array[i, j]),3} ");
+            }
+            Console.WriteLine(); // New line after each row
+        }
+    }
+
+    
+    
 }
