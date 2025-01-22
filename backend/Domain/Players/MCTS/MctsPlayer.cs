@@ -11,12 +11,6 @@ public class MctsNode
     public readonly MctsNode? Parent = null;
     public bool IsTerminal { get; set; }
     public byte PlayerValue { get; set; }
-
-    public void IncreasePlayerValue()
-    {
-        PlayerValue = (byte)((PlayerValue % 3) + 1);
-    }
-
     public MctsNode(byte[,] board, MctsNode? parent, byte playerNum)
     {
         Board = board;
@@ -48,21 +42,23 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         
         var root = new MctsNode(game.To2DArray(hexes), null, (byte)game.CurrentMovePlayerIndex.Value);
 
-        game.PrintRaw2DArray(root.Board);
+        // game.PrintRaw2DArray(root.Board);
         
         var clock = new Stopwatch();
         clock.Start();
 
-        const int iterations = 50000;
+        const int iterations = 10_000;
         
-        var res  = MCTS(root, iterations);
+        MCTS(root, iterations);
 
         clock.Stop();
+        
         Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
         Console.WriteLine($"Run {iterations} iterations");
-        Console.WriteLine($"Total visits / total rewards  = {res.TotalReward}/{res.TotalVisits}");
+        Console.WriteLine($"Total visits / total rewards  = {root.TotalReward}/{root.TotalVisits}");
         Console.WriteLine();
-        PrintMaxDepth(res);
+        
+        // PrintMaxDepth(res);
         var final = root.Children.MaxBy(child => child.TotalVisits);
 
         var (col, row) = FindNewlyAddedSpace(root.Board, final.Board);
@@ -74,9 +70,9 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
 
         var a = (r, s, q);
         
-        game.PrintRaw2DArray(final.Board);
+        // game.PrintRaw2DArray(final.Board);
 
-        Console.WriteLine();
+        // Console.WriteLine();
         
         var selectedHex = game.PlayableHexagons.FirstOrDefault(h => h.Q == r && h.R == q && h.S == s);
 
@@ -225,13 +221,25 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
 
             PathFinder pathFinder = new PathFinder();
 
-            var haspath = pathFinder.HasPath(simulationBoard, whoShouldWin);
             
-            // if ( haspath) Console.WriteLine("NALEZENA CESTA");
+            // Check if any other player has a winning path
+            foreach (int player in new[] { 1, 2, 3 })
+            {
+                if (player != whoShouldWin && pathFinder.HasPath(simulationBoard, player))
+                {
+                    return -1; // Another player wins
+                }
+            }
+            
+            // Check if the desired player has a winning path
+            if (pathFinder.HasPath(simulationBoard, whoShouldWin))
+            {
+                return 1; // Desired player wins
+            }
+            
 
-            // PrintRaw2DArray(simulationBoard);
-            // Console.WriteLine("==========================");
-            return  haspath ? 1 : 0;
+            // If no one wins, it's a draw
+            return 0;
         }
         
         public void PrintRaw2DArray(byte[,] array)
