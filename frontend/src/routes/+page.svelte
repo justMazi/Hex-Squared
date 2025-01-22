@@ -49,7 +49,7 @@
 	<img src={hex2Logo} alt="hex2" class="h-16 w-16" />
 
 	<!-- Centered Title -->
-	<h1 class="mt-8 text-center text-2xl font-bold text-gray-800">Hex Squared</h1>
+	<h1 class="mt-8 text-center text-4xl font-bold text-gray-800">Hex<sup>2</sup></h1>
 
 	<!-- Card Component -->
 	<Card class="mt-8 w-full max-w-md rounded-lg bg-white p-6 shadow-md">
