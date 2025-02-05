@@ -11,7 +11,7 @@ class Program
     static async Task Main(string[] args)
     {
         var radius = 5;
-        const int numberOfGames = 50; 
+        const int numberOfGames = 20; 
         
         
         var gameRepository = new GameRepository();
