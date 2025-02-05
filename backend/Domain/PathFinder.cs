@@ -15,6 +15,12 @@ public class PathFinder
         // Initialize starting and ending points based on the player
         var startCells = GetStartingCells(_rows, player);
         var endCells = GetEndingCells(_rows, player);
+
+        if (board[startCells.Item1, startCells.Item2] != board[endCells.Item1, endCells.Item2])
+        {
+            throw new ApplicationException("KONEC A ZACATEK NENI STEJNA HODNOTA");
+        }
+        
         
         return IterativeDfs(board, startCells.Item1, startCells.Item2, endCells, player, visited);
     }

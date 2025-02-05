@@ -10,8 +10,8 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var radius = 5;
-        const int numberOfGames = 20; 
+        var radius = 7;
+        const int numberOfGames = 10; 
         
         
         var gameRepository = new GameRepository();
@@ -23,8 +23,8 @@ class Program
         var playerTypes = new[]
         {
             typeof(MctsPlayer),
-            typeof(PathFinderHeuristic),
-            typeof(PathFinderHeuristic) 
+            typeof(RandomPlayer),
+            typeof(RandomPlayer) 
         };
 
         // Results accumulator
