@@ -47,7 +47,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         var clock = new Stopwatch();
         clock.Start();
 
-        const int iterations = 10_000;
+        const int iterations = 2_000;
         
         MCTS(root, iterations);
 
