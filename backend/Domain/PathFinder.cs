@@ -13,30 +13,30 @@ public class PathFinder
         var visited = new bool[_rows, _cols];
 
         // Initialize starting and ending points based on the player
-        var startCells = GetStartingCells(player);
-        var endCells = GetEndingCells(player);
-
+        var startCells = GetStartingCells(_rows, player);
+        var endCells = GetEndingCells(_rows, player);
+        
         return IterativeDfs(board, startCells.Item1, startCells.Item2, endCells, player, visited);
     }
 
-    private (int, int) GetStartingCells(int player)
+    private (int, int) GetStartingCells(int squareSize, int player)
     {
         return player switch
         {
-            1 => (9, 0),
-            2 => (10, 1),
-            3 => (1, 4),
+            1 => (squareSize-2, 0),
+            2 => (squareSize-1, 1),
+            3 => (1, ((squareSize-1)/2)-1),
             _ => throw new Exception("toto se nemelo stat")
         };
     }
 
-    private (int, int) GetEndingCells(int player)
+    private (int, int) GetEndingCells(int squareSize, int player)
     {
         return player switch
         {
-            1 => (1, 10),
-            2 => (0, 6),
-            3 => (9, 6),
+            1 => (1, squareSize-1),
+            2 => (0, squareSize-2),
+            3 => (squareSize-2, ((squareSize-1)/2)+1),
             _ => throw new Exception("toto se nemelo stat")
         };
     }
