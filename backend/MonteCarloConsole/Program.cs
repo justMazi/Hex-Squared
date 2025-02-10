@@ -47,7 +47,6 @@ namespace MonteCarloConsole;
             var radius = 5;
             var game = new Game(new GameId("absd"), radius, typeof(PathFinderHeuristic));
             
-            
             var root = new MctsNode(game.To2DArray(), null, new PlayerNum());
 
             var clock = new Stopwatch();
@@ -57,7 +56,7 @@ namespace MonteCarloConsole;
 
             
             Program program = new Program();
-            var res  = program.MCTS(root, iterations);
+            var res  = program.MCTS(root, iterations, 0);
 
             clock.Stop();
             Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
@@ -113,14 +112,14 @@ namespace MonteCarloConsole;
         }
 
         
-        private MctsNode MCTS(MctsNode root, int iterations)
+        private MctsNode MCTS(MctsNode root, int iterations, int rotation)
         {
             var whoShouldWin = root.PlayerValue.Value;
             
             Expand(root);
             root.Children.ForEach(n =>
             {
-                int reward = Simulate(n, whoShouldWin);
+                int reward = Simulate(n, whoShouldWin, rotation);
                 Backpropagate(n, reward);
             });
             
@@ -134,7 +133,7 @@ namespace MonteCarloConsole;
                     Expand(node);
 
                 // Simulation
-                int reward = Simulate(node, whoShouldWin);
+                int reward = Simulate(node, whoShouldWin, rotation);
 
                 // Backpropagation
                 Backpropagate(node, reward);
@@ -160,7 +159,7 @@ namespace MonteCarloConsole;
             node.Children.AddRange(children);
         }
 
-        private int Simulate(MctsNode node, byte whoShouldWin)
+        private int Simulate(MctsNode node, byte whoShouldWin, int rotation)
         {
             var simulationBoard = (byte[,])node.Board.Clone();
             var currentPlayer = node.PlayerValue;
@@ -198,7 +197,7 @@ namespace MonteCarloConsole;
 
             PathFinder pathFinder = new PathFinder();
 
-            var haspath = pathFinder.HasPath(simulationBoard, whoShouldWin);
+            var haspath = pathFinder.HasPath(simulationBoard, whoShouldWin, rotation);
             
             // if ( haspath) Console.WriteLine("NALEZENA CESTA");
 

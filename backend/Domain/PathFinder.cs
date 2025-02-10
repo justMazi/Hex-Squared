@@ -6,43 +6,71 @@ public class PathFinder
     private readonly int[,] _directions = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, {-1,1}, {1,-1} }; // Up, Down, Left, Right
     private int _rows, _cols;
 
-    public bool HasPath(byte[,] board, int player)
+    public bool HasPath(byte[,] board, int playerIamTryingToConnect, int rotation)
     {
         _rows = board.GetLength(0);
         _cols = board.GetLength(1);
         var visited = new bool[_rows, _cols];
 
+        var plaaayer = GetMappedValue(rotation, playerIamTryingToConnect);
         // Initialize starting and ending points based on the player
-        var startCells = GetStartingCells(_rows, player);
-        var endCells = GetEndingCells(_rows, player);
-
-        if (board[startCells.Item1, startCells.Item2] != board[endCells.Item1, endCells.Item2])
+        var startCells = GetStartingCells(_rows, plaaayer);
+        var endCells = GetEndingCells(_rows, plaaayer);
+        
+        var a = board[startCells.Item1, startCells.Item2];
+        var b = board[endCells.Item1, endCells.Item2];
+        
+        if (a != b)
         {
             throw new ApplicationException("KONEC A ZACATEK NENI STEJNA HODNOTA");
         }
         
+        if (a != playerIamTryingToConnect || b != playerIamTryingToConnect)
+        {
+            throw new ApplicationException("SPATNE ZACATECNI HODNOTA");
+        }
         
-        return IterativeDfs(board, startCells.Item1, startCells.Item2, endCells, player, visited);
+        return IterativeDfs(board, startCells.Item1, startCells.Item2, endCells, playerIamTryingToConnect, visited);
     }
 
-    private (int, int) GetStartingCells(int squareSize, int player)
+    private int GetMappedValue(int rotation, int playerNumber)
+    {
+        // Define the mapping using a dictionary
+        var mapping = new Dictionary<(int, int), int>
+        {
+            { (2, 1), 1 }, { (1, 1), 2 }, { (0, 1), 0 },
+            { (0, 2), 1 }, { (1, 2), 0 }, { (2, 2), 2 },
+            { (0, 3), 2 }, { (1, 3), 1 }, { (2, 3), 0 }
+        };
+
+        // Return the mapped value or throw an error if inputs are invalid
+        if (mapping.TryGetValue((rotation, playerNumber), out int result))
+        {
+            return result;
+        }
+    
+        throw new ArgumentException($"Invalid rotation ({rotation}) or playerNumber ({playerNumber})");
+    }
+
+    
+    public (int, int) GetStartingCells(int squareSize, int player)
     {
         return player switch
         {
-            1 => (squareSize-2, 0),
-            2 => (squareSize-1, 1),
-            3 => (1, ((squareSize-1)/2)-1),
+            0 => (squareSize-2, 0),
+            1 => (squareSize-1, 1),
+            2 => (squareSize-2, ((squareSize-1)/2)+1),
             _ => throw new Exception("toto se nemelo stat")
         };
     }
 
-    private (int, int) GetEndingCells(int squareSize, int player)
+    public  (int, int) GetEndingCells(int squareSize, int player)
     {
         return player switch
         {
-            1 => (1, squareSize-1),
-            2 => (0, squareSize-2),
-            3 => (squareSize-2, ((squareSize-1)/2)+1),
+            0 => (1, squareSize-1),
+            1 => (0, squareSize-2),
+            2 => (1, ((squareSize-1)/2)-1),
             _ => throw new Exception("toto se nemelo stat")
         };
     }

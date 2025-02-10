@@ -9,13 +9,15 @@ public class MctsNode
     public int TotalVisits = 0;
     public readonly List<MctsNode> Children = new();
     public readonly MctsNode? Parent = null;
+    public readonly (int i, int j)? CoordinatesOfMove;
     public bool IsTerminal { get; set; }
     public byte PlayerValue { get; set; }
-    public MctsNode(byte[,] board, MctsNode? parent, byte playerNum)
+    public MctsNode(byte[,] board, MctsNode? parent, byte playerNum, (int i, int j)? coordinatesOfMove = null)
     {
         Board = board;
         Parent = parent;
         PlayerValue = playerNum;
+        CoordinatesOfMove = coordinatesOfMove;
     }
 }
 
@@ -26,6 +28,9 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
 {
     public override Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
     {
+        Console.WriteLine("==================ZACATEEEK KOLAAAA=================");
+
+        
         var playableIndexes = new HashSet<int>(game.PlayableHexagons.Select(hex => hex.Index));
 
         var hexes = game.Hexagons.Select(h =>
@@ -38,54 +43,138 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             return h;
         }).ToList();
         
+        Console.WriteLine("INIT");
+        game.PrintRaw2DArray(game.To2DArray(hexes));
         
+        int rotation = game.CurrentMovePlayerIndex.Value switch
+        {
+            1 => 0,  // No rotation needed
+            2 => 1,  // 120° Clockwise
+            3 => 2,  // 240° Clockwise
+            _ => throw new Exception("Invalid player")
+        };
         
-        var root = new MctsNode(game.To2DArray(hexes), null, (byte)game.CurrentMovePlayerIndex.Value);
 
-        // game.PrintRaw2DArray(root.Board);
+        
+        
+        var rotatedHexes = HexRotation.RotateHexes(hexes, rotation);
+
+        Console.WriteLine("INDICES ROTATE");
+        var indices = game.To2DArrayIndices(rotatedHexes);
+        game.PrintRaw2DArray(indices);
+        
+        var d2_Rotate = game.To2DArray(rotatedHexes);
+        Console.WriteLine("D2 ROTATE");
+        game.PrintRaw2DArray(d2_Rotate);
+        var root = new MctsNode(d2_Rotate, null, (byte)game.CurrentMovePlayerIndex.Value);
+
         
         var clock = new Stopwatch();
         clock.Start();
 
         const int iterations = 2_000;
         
-        MCTS(root, iterations);
+        MCTS(root, iterations, rotation);
 
         clock.Stop();
         
+        
+        /*
+        // POKUD VSECHNY CHILDREN JSOU STEJNE NA PICU TAK TO PAK MA TENDENCI VYBIRAT PRVNI CHILDREN, TAKZE NEJNIZSI VOLNY INDEX => TAM BY TO MELO BYT RANDOM + RIDIT MCTS NEURONKOU
+        
+        
         Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
         Console.WriteLine($"Run {iterations} iterations");
-        Console.WriteLine($"Total visits / total rewards  = {root.TotalReward}/{root.TotalVisits}");
         Console.WriteLine();
-        
+        */
         // PrintMaxDepth(res);
+        Console.WriteLine($"Total visits / total rewards  = {root.TotalReward}/{root.TotalVisits}");
         var final = root.Children.MaxBy(child => child.TotalVisits);
 
-        var (col, row) = FindNewlyAddedSpace(root.Board, final.Board);
+        Console.WriteLine("AFTER SELECT");
+        game.PrintRaw2DArray(final.Board);
+        Console.WriteLine($"selected move is: i: {final.CoordinatesOfMove.Value.i}, j: {final.CoordinatesOfMove.Value.j}");
+
+        var (col, row) = final.CoordinatesOfMove.Value;
         
         // Convert 2D indices back to axial coordinates
         int r = row - game.Radius - 1; // Reverse the positive shift
         int q = col - game.Radius - 1; // Reverse the positive shift
         int s = -r - q;           // Ensure axial coordinate constraint R + Q + S = 0
 
-        var a = (r, s, q);
+        var index = indices[col, row];
+        var selectedHex = rotatedHexes.FirstOrDefault(h => 
+            h.R == r && h.Q == q && h.S == s);
         
-        // game.PrintRaw2DArray(final.Board);
-
-        // Console.WriteLine();
-        
-        var selectedHex = game.PlayableHexagons.FirstOrDefault(h => h.Q == r && h.R == q && h.S == s);
+        Console.WriteLine($"index is {index}");
 
         if (selectedHex is null)
         {
             throw new ApplicationException("SNAZIM SE VYBRAT NECO CO NENI V PLAYABLE HEXAGONS");
         }
         
-        return Task.FromResult(selectedHex.Index);
+        return Task.FromResult((int)index);
     }
 
 
+    public static class HexRotation
+    {
+        /// <summary>
+        /// Rotates hex coordinates (R, S, Q) based on the given rotation step (0, 1, 2).
+        /// </summary>
+        public static List<Hex> RotateHexes(IReadOnlyList<Hex> hexes, int rotation)
+        {
+            return hexes.Select(hex =>
+            {
+                if (rotation == 0)
+                {
+                    return hex;
+                }
 
+                if(rotation == 1){
+                    
+                    var (newR, newS, newQ)= RotateHexCoords(hex.R, hex.S, hex.Q, 1);
+                    return new Hex(newR, newS, newQ, hex.Index, hex.Owner);
+
+                }
+                if (rotation == 2)
+                {
+                    var (newR1, newS1, newQ1)= RotateHexCoords(hex.R, hex.S, hex.Q, 1);
+                    var (newR2, newS2, newQ2)= RotateHexCoords(newR1, newS1, newQ1, 1);
+                    return new Hex(newR2, newS2, newQ2, hex.Index, hex.Owner);
+                }
+
+                throw new Exception("Invalid rotation value");
+            }).ToList();
+        }
+        
+        public static (int, int, int) RotateHexCoords(int r, int s, int q, int rotation)
+        {
+            return (-s, -q, -r);
+        }
+
+        /// <summary>
+        /// Reverses the hex coordinate rotation to recover the original position.
+        /// </summary>
+        public static (int, int, int) RotateHexCoordsBack(int r, int s, int q, int rotation)
+        {
+            return rotation switch
+            {
+                1 => (-q, -r, -s), // Reverse of 120° (i.e., 240°)
+                2 => (-s, -q, -r), // Reverse of 240° (i.e., 120°)
+                _ => (r, s, q)  // No rotation
+            };
+        }
+    }
+    public static (int, int, int) ReverseRotateHexCoords(int r, int s, int q, int rotation)
+    {
+        return rotation switch
+        {
+            1 => (-q, -r, -s), // Correct Reverse of 120° (i.e., 240°)
+            2 => (-s, -q, -r), // Correct Reverse of 240° (i.e., 120°)
+            _ => (r, s, q)  // No rotation
+        };
+    }
 
         static (int i, int j) FindNewlyAddedSpace(byte[,] initialBoard, byte[,] finalBoard)
         {
@@ -136,14 +225,14 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         }
 
         
-        private MctsNode MCTS(MctsNode root, int iterations)
+        public static MctsNode MCTS(MctsNode root, int iterations, int rotation)
         {
             var whoShouldWin = root.PlayerValue;
             
             Expand(root);
             root.Children.ForEach(n =>
             {
-                int reward = Simulate(n, whoShouldWin);
+                int reward = Simulate(n, whoShouldWin, rotation);
                 Backpropagate(n, reward);
             });
             
@@ -157,7 +246,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
                     Expand(node);
 
                 // Simulation
-                int reward = Simulate(node, whoShouldWin);
+                int reward = Simulate(node, whoShouldWin, rotation);
 
                 // Backpropagation
                 Backpropagate(node, reward);
@@ -166,7 +255,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             return root;
         }
 
-        private MctsNode Select(MctsNode node)
+        private static MctsNode Select(MctsNode node)
         {
             // Implement UCT or another selection policy
             while (node.Children.Count > 0)
@@ -176,14 +265,14 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             return node;
         }
 
-        private void Expand(MctsNode node)
+        private static void Expand(MctsNode node)
         {
             // Generate child nodes based on possible moves
             List<MctsNode> children = GenerateChildren(node);
             node.Children.AddRange(children);
         }
 
-        private int Simulate(MctsNode node, byte whoShouldWin)
+        private static int Simulate(MctsNode node, byte whoShouldWin, int rotation)
         {
             var simulationBoard = (byte[,])node.Board.Clone();
             var currentPlayer = node.PlayerValue;
@@ -225,14 +314,14 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             // Check if any other player has a winning path
             foreach (int player in new[] { 1, 2, 3 })
             {
-                if (player != whoShouldWin && pathFinder.HasPath(simulationBoard, player))
+                if (player != whoShouldWin && pathFinder.HasPath(simulationBoard, player, whoShouldWin-1))
                 {
                     return -1; // Another player wins
                 }
             }
             
             // Check if the desired player has a winning path
-            if (pathFinder.HasPath(simulationBoard, whoShouldWin))
+            if (pathFinder.HasPath(simulationBoard, whoShouldWin, whoShouldWin-1))
             {
                 return 1; // Desired player wins
             }
@@ -255,7 +344,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             }
         }
         
-        private void Backpropagate(MctsNode node, int reward)
+        private static void Backpropagate(MctsNode node, int reward)
         {
             while (node != null)
             {
@@ -265,7 +354,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             }
         }
 
-        private MctsNode BestChild(MctsNode node)
+        private static MctsNode BestChild(MctsNode node)
         {
             double maxUcb = double.MinValue;
             MctsNode bestChild = null;
@@ -304,7 +393,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         }
 
 
-        private List<MctsNode> GenerateChildren(MctsNode node)
+        private static List<MctsNode> GenerateChildren(MctsNode node)
         {
             var children = new List<MctsNode>();
 
@@ -320,7 +409,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
                         newBoard[i, j] = node.PlayerValue;
                         
                         var newPlayerVal = (byte)((node.PlayerValue % 3) + 1);
-                        children.Add(new MctsNode(newBoard, node, newPlayerVal));
+                        children.Add(new MctsNode(newBoard, node, newPlayerVal, (i,j)));
                     }
                 }
             }
