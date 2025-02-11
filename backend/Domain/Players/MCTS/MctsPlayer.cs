@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text.Json;
 
 namespace Domain.Players.MCTS;
 
@@ -22,6 +23,136 @@ public class MctsNode
 }
 
 
+public class TrainingSample
+{
+    public List<int> Player1Board { get; set; }
+    public List<int> Player2Board { get; set; }
+    public List<int> Player3Board { get; set; }
+    public float RootValue { get; set; }
+    public float[] MoveProbabilities { get; set; }
+
+    public TrainingSample(byte[] p1, byte[] p2, byte[] p3, float rootValue, float[] moveProbs)
+    {
+        Player1Board = ConvertToIntList(p1);
+        Player2Board = ConvertToIntList(p2);
+        Player3Board = ConvertToIntList(p3);
+        RootValue = rootValue;
+        MoveProbabilities = moveProbs;
+    }
+
+    // Convert byte array to a list of integers for JSON serialization
+    private static List<int> ConvertToIntList(byte[] array)
+    {
+        return array.Select(b => (int)b).ToList();
+    }
+}
+
+
+
+public static class TrainingDataStorage
+{
+    private const int MaxSamples = 100; // Flush when 100 samples are stored
+    private static List<TrainingSample> _samples = new();
+    private static readonly string _folderPath = "V:\\MFF\\bakalarka\\training_data"; // Folder for storing JSON files
+
+    static TrainingDataStorage()
+    {
+        // Ensure directory exists
+        if (!Directory.Exists(_folderPath))
+        {
+            Directory.CreateDirectory(_folderPath);
+        }
+    }
+
+    // Add new training sample
+    public static void AddTrainingSample(TrainingSample sample)
+    {
+        _samples.Add(sample);
+        
+        if (_samples.Count >= MaxSamples)
+        {
+            FlushToDisk();
+        }
+    }
+
+    // Flush all stored samples to a new file
+    public static void FlushToDisk()
+    {
+        if (_samples.Count == 0) return; // No samples to flush
+
+        try
+        {
+            // Generate unique filename using timestamp
+            string fileName = $"training_batch_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json";
+            string filePath = Path.Combine(_folderPath, fileName);
+
+            // Serialize and write to file
+            var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+            string jsonData = JsonSerializer.Serialize(_samples, jsonOptions);
+            File.WriteAllText(filePath, jsonData);
+
+            Console.WriteLine($"Flushed {_samples.Count} samples to {filePath}");
+
+            _samples.Clear(); // Clear memory after saving
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error while flushing training data: {ex.Message}");
+        }
+    }
+}
+
+
+
+
+
+
+public class MctsTrainingData
+{
+    public static void AddTrainingSample(MctsNode root)
+    {
+        var sample = GenerateTrainingData(root);
+        TrainingDataStorage.AddTrainingSample(sample);
+    }
+    public static TrainingSample GenerateTrainingData(MctsNode root)
+    {
+        int size = root.Board.GetLength(0);
+        int totalCells = size * size;
+
+        // Initialize binary 1D arrays for each player
+        byte[] player1Board = new byte[totalCells];
+        byte[] player2Board = new byte[totalCells];
+        byte[] player3Board = new byte[totalCells];
+
+        // Fill the binary boards directly in 1D format
+        for (int i = 0; i < size; i++)
+        {
+            for (int j = 0; j < size; j++)
+            {
+                int index = i * size + j;
+                if (root.Board[i, j] == 1) player1Board[index] = 1;
+                if (root.Board[i, j] == 2) player2Board[index] = 1;
+                if (root.Board[i, j] == 3) player3Board[index] = 1;
+            }
+        }
+
+        // Compute root value as reward/visits
+        float rootValue = root.TotalVisits > 0 ? (float)root.TotalReward / root.TotalVisits : 0f;
+
+        // Initialize move probabilities
+        float[] moveProbabilities = new float[totalCells];
+        int totalVisits = root.Children.Sum(child => child.TotalVisits);
+
+        foreach (var child in root.Children)
+        {
+            int index = child.CoordinatesOfMove.Value.i * size + child.CoordinatesOfMove.Value.j;
+            moveProbabilities[index] = totalVisits > 0 ? (float)child.TotalVisits / totalVisits : 0f;
+        }
+
+        return new TrainingSample(player1Board, player2Board, player3Board, rootValue, moveProbabilities);
+    }
+
+}
 
 
 public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
@@ -65,14 +196,16 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         // game.PrintRaw2DArray(d2_Rotate);
         var root = new MctsNode(d2_Rotate, null, (byte)game.CurrentMovePlayerIndex.Value);
         
-        var clock = new Stopwatch();
-        clock.Start();
+        // var clock = new Stopwatch();
+        // clock.Start();
 
-        const int iterations = 2_000;
+        const int iterations = 15_000;
         
         MCTS(root, iterations, rotation);
 
-        clock.Stop();
+        MctsTrainingData.AddTrainingSample(root);
+
+        // clock.Stop();
         
         /*
         // POKUD VSECHNY CHILDREN JSOU STEJNE NA PICU TAK TO PAK MA TENDENCI VYBIRAT PRVNI CHILDREN, TAKZE NEJNIZSI VOLNY INDEX => TAM BY TO MELO BYT RANDOM + RIDIT MCTS NEURONKOU
@@ -142,52 +275,10 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             return (-s, -q, -r);
         }
 
-        /// <summary>
-        /// Reverses the hex coordinate rotation to recover the original position.
-        /// </summary>
-        public static (int, int, int) RotateHexCoordsBack(int r, int s, int q, int rotation)
-        {
-            return rotation switch
-            {
-                1 => (-q, -r, -s), // Reverse of 120° (i.e., 240°)
-                2 => (-s, -q, -r), // Reverse of 240° (i.e., 120°)
-                _ => (r, s, q)  // No rotation
-            };
-        }
-    }
-    public static (int, int, int) ReverseRotateHexCoords(int r, int s, int q, int rotation)
-    {
-        return rotation switch
-        {
-            1 => (-q, -r, -s), // Correct Reverse of 120° (i.e., 240°)
-            2 => (-s, -q, -r), // Correct Reverse of 240° (i.e., 120°)
-            _ => (r, s, q)  // No rotation
-        };
     }
 
-        static (int i, int j) FindNewlyAddedSpace(byte[,] initialBoard, byte[,] finalBoard)
-        {
-            (int i, int j)? res = null;
-            for (int i = 0; i < initialBoard.GetLength(0); i++)
-            {
-                for (int j = 0; j < initialBoard.GetLength(1); j++)
-                {
-                    if (initialBoard[i, j] != finalBoard[i, j])
-                    {
-                        if (res is not null)
-                        {
-                            throw new Exception("TADY TO NEMELO NAJIT DALSI ZMENU");
-                        }
 
-                        res = (i, j);
-                    }
-                }
-            }
 
-            return ((int i, int j))res;
-
-            throw new Exception("there is no diference in the boards");
-        }
 
         
         

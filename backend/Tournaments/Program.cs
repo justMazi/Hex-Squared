@@ -10,8 +10,8 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var radius = 5;
-        const int numberOfGames = 1; 
+        var radius = 6;
+        const int numberOfGames = 100; 
         
         
         var gameRepository = new GameRepository();
@@ -52,9 +52,8 @@ class Program
                 var currentPlayer = game.Players[game.CurrentMovePlayerIndex - 1];
 
                 if (currentPlayer is not AiPlayer player)
-                    throw new Exception("Tournaments allow only AI players");
+                    throw new Exception($"Tournaments allow only {nameof(AiPlayer)} players");
 
-                // Asynchronous method in a synchronous context with .GetAwaiter().GetResult()
                 var bestMoveIndex = player.CalculateBestMoveAsync(game, cancellationToken).GetAwaiter().GetResult();
 
                 var hexagon = game.Hexagons.FirstOrDefault(h => h.Index == bestMoveIndex);
@@ -94,6 +93,9 @@ class Program
                 (acc, gameResult) => acc.Zip(gameResult, (a, b) => a + b).ToList()
             );
 
+        
+        TrainingDataStorage.FlushToDisk();
+        
         // Calculate the total number of games and draws
         var totalGames = finishedGames.Count();
         var totalDraws = totalGames - aggregatedResults.Sum(); // Assuming 1 win per game if no draws

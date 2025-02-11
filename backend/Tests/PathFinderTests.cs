@@ -7,7 +7,7 @@ namespace Tests;
 public class PathFinderTests
 {
     [Test]
-    public void Test1()
+    public void StaticPlayerVariableConnection_DoesntThrow()
     {
         var pathfinder = new PathFinder();
         
@@ -24,7 +24,7 @@ public class PathFinderTests
     } 
     
     [Test]
-    public void Test3()
+    public void StaticRotationVariablePlayerConnection_DoesntThrow()
     {
         var pathfinder = new PathFinder();
         
@@ -41,7 +41,7 @@ public class PathFinderTests
     }
     
     [Test]
-    public void Test2()
+    public void RotationAndDifferentPlayerConnecting_DoesntThrow()
     {
         var pathfinder = new PathFinder();
         
