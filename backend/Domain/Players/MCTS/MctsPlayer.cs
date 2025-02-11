@@ -28,7 +28,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
 {
     public override Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
     {
-        Console.WriteLine("==================ZACATEEEK KOLAAAA=================");
+        // Console.WriteLine("==================ZACATEEEK KOLAAAA=================");
 
         
         var playableIndexes = new HashSet<int>(game.PlayableHexagons.Select(hex => hex.Index));
@@ -43,31 +43,27 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             return h;
         }).ToList();
         
-        Console.WriteLine("INIT");
-        game.PrintRaw2DArray(game.To2DArray(hexes));
+        // Console.WriteLine("INIT");
+        // game.PrintRaw2DArray(game.To2DArray(hexes));
         
         int rotation = game.CurrentMovePlayerIndex.Value switch
         {
             1 => 0,  // No rotation needed
-            2 => 1,  // 120° Clockwise
-            3 => 2,  // 240° Clockwise
+            2 => 1,  // 60° Clockwise
+            3 => 2,  // 120° Clockwise
             _ => throw new Exception("Invalid player")
         };
         
-
-        
-        
         var rotatedHexes = HexRotation.RotateHexes(hexes, rotation);
-
-        Console.WriteLine("INDICES ROTATE");
+        
+        // Console.WriteLine("INDICES ROTATE");
         var indices = game.To2DArrayIndices(rotatedHexes);
-        game.PrintRaw2DArray(indices);
+        // game.PrintRaw2DArray(indices);
         
         var d2_Rotate = game.To2DArray(rotatedHexes);
-        Console.WriteLine("D2 ROTATE");
-        game.PrintRaw2DArray(d2_Rotate);
+        // Console.WriteLine("D2 ROTATE");
+        // game.PrintRaw2DArray(d2_Rotate);
         var root = new MctsNode(d2_Rotate, null, (byte)game.CurrentMovePlayerIndex.Value);
-
         
         var clock = new Stopwatch();
         clock.Start();
@@ -78,7 +74,6 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
 
         clock.Stop();
         
-        
         /*
         // POKUD VSECHNY CHILDREN JSOU STEJNE NA PICU TAK TO PAK MA TENDENCI VYBIRAT PRVNI CHILDREN, TAKZE NEJNIZSI VOLNY INDEX => TAM BY TO MELO BYT RANDOM + RIDIT MCTS NEURONKOU
         
@@ -86,15 +81,15 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
         Console.WriteLine($"Run {iterations} iterations");
         Console.WriteLine();
-        */
+        
         // PrintMaxDepth(res);
         Console.WriteLine($"Total visits / total rewards  = {root.TotalReward}/{root.TotalVisits}");
-        var final = root.Children.MaxBy(child => child.TotalVisits);
 
         Console.WriteLine("AFTER SELECT");
         game.PrintRaw2DArray(final.Board);
         Console.WriteLine($"selected move is: i: {final.CoordinatesOfMove.Value.i}, j: {final.CoordinatesOfMove.Value.j}");
-
+        */
+        var final = root.Children.MaxBy(child => child.TotalVisits);
         var (col, row) = final.CoordinatesOfMove.Value;
         
         // Convert 2D indices back to axial coordinates
@@ -103,15 +98,9 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         int s = -r - q;           // Ensure axial coordinate constraint R + Q + S = 0
 
         var index = indices[col, row];
-        var selectedHex = rotatedHexes.FirstOrDefault(h => 
-            h.R == r && h.Q == q && h.S == s);
         
-        Console.WriteLine($"index is {index}");
+        // Console.WriteLine($"index is {index}");
 
-        if (selectedHex is null)
-        {
-            throw new ApplicationException("SNAZIM SE VYBRAT NECO CO NENI V PLAYABLE HEXAGONS");
-        }
         
         return Task.FromResult((int)index);
     }

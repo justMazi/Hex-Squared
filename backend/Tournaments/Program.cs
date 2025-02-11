@@ -11,7 +11,7 @@ class Program
     static async Task Main(string[] args)
     {
         var radius = 5;
-        const int numberOfGames = 5; 
+        const int numberOfGames = 1; 
         
         
         var gameRepository = new GameRepository();
@@ -22,13 +22,10 @@ class Program
 
         var playerTypes = new[]
         {
-            typeof(RandomPlayer),
-            typeof(RandomPlayer),
+            typeof(MctsPlayer),
+            typeof(MctsPlayer),
             typeof(MctsPlayer),
         };
-
-        // Results accumulator
-        var gameResultsLock = new object(); // Lock for thread-safe access to shared list
 
         var finishedGames = Enumerable.Range(0, numberOfGames).Select(gameNum =>
         {
@@ -71,8 +68,8 @@ class Program
 
                         if (currentPlayer is MctsPlayer)
                         {
-                            updatedGame.PrintRaw2DArray(updatedGame.To2DArray());
-                            Console.WriteLine("==================================================");
+                            // updatedGame.PrintRaw2DArray(updatedGame.To2DArray());
+                            // Console.WriteLine("==================================================");
                         }
                         return updatedGame;
                         
