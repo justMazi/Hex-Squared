@@ -44,7 +44,7 @@ public class PathFinder
         };
 
         // Return the mapped value or throw an error if inputs are invalid
-        if (mapping.TryGetValue((rotation, playerNumber), out int result))
+        if (mapping.TryGetValue((rotation, playerNumber), out var result))
         {
             return result;
         }
@@ -95,10 +95,10 @@ public class PathFinder
             if (row == endCells.Item1 && col == endCells.Item2)
                 return true;
             
-            for (int i = 0; i < 6; i++)
+            for (var i = 0; i < 6; i++)
             {
-                int newRow = row + _directions[i, 0];
-                int newCol = col + _directions[i, 1];
+                var newRow = row + _directions[i, 0];
+                var newCol = col + _directions[i, 1];
                 stack.Push((newRow, newCol));
             }
         }

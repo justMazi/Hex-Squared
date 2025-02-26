@@ -16,7 +16,7 @@ public class PathFinderTests
         
         foreach (var i in Enumerable.Range(0,3).ToList())
         {
-            var rotatedHexes = MctsPlayer.HexRotation.RotateHexes(game.Hexagons, i);
+            var rotatedHexes = MctsHelpers.HexRotation.RotateHexes(game.Hexagons, i);
             var rotatedArray = game.To2DArray(rotatedHexes);
             game.PrintRaw2DArray(rotatedArray);
             pathfinder.HasPath(rotatedArray, 1, i);
@@ -33,7 +33,7 @@ public class PathFinderTests
         
         foreach (var i in Enumerable.Range(1,3).ToList())
         {
-            var rotatedHexes = MctsPlayer.HexRotation.RotateHexes(game.Hexagons, 0);
+            var rotatedHexes = MctsHelpers.HexRotation.RotateHexes(game.Hexagons, 0);
             var rotatedArray = game.To2DArray(rotatedHexes);
             game.PrintRaw2DArray(rotatedArray);
             pathfinder.HasPath(rotatedArray, i, 0);
@@ -52,7 +52,7 @@ public class PathFinderTests
         {
             foreach (var player in Enumerable.Range(1, 3).ToList())
             {
-                var rotatedHexes = MctsPlayer.HexRotation.RotateHexes(game.Hexagons, rotation);
+                var rotatedHexes = MctsHelpers.HexRotation.RotateHexes(game.Hexagons, rotation);
                 var rotatedArray = game.To2DArray(rotatedHexes);
                 game.PrintRaw2DArray(rotatedArray);
                 pathfinder.HasPath(rotatedArray, player, rotation);

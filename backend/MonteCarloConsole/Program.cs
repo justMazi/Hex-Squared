@@ -55,8 +55,8 @@ namespace MonteCarloConsole;
             const int iterations = 10000;
 
             
-            Program program = new Program();
-            var res  = program.MCTS(root, iterations, 0);
+            var program = new Program();
+            var res  = program.Mcts(root, iterations, 0);
 
             clock.Stop();
             Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
@@ -73,9 +73,9 @@ namespace MonteCarloConsole;
         
         static (int i, int j) FindNewlyAddedSpace(byte[,] initialBoard, byte[,] finalBoard)
         {
-            for (int i = 0; i < initialBoard.GetLength(0); i++)
+            for (var i = 0; i < initialBoard.GetLength(0); i++)
             {
-                for (int j = 0; j < initialBoard.GetLength(1); j++)
+                for (var j = 0; j < initialBoard.GetLength(1); j++)
                 {
                     if (initialBoard[i, j] != finalBoard[i, j])
                     {
@@ -94,7 +94,7 @@ namespace MonteCarloConsole;
             if (node == null) return 0; // Base case: No node, depth is 0
             if (node.Children == null || node.Children.Count == 0) return 1; // Leaf node, depth is 1
 
-            int maxDepth = 0;
+            var maxDepth = 0;
 
             // Traverse all children and calculate their depths
             foreach (var child in node.Children)
@@ -107,23 +107,23 @@ namespace MonteCarloConsole;
 
         static public void PrintMaxDepth(MctsNode root)
         {
-            int maxDepth = GetMaxDepth(root);
+            var maxDepth = GetMaxDepth(root);
             Console.WriteLine($"Maximum depth from the root: {maxDepth}");
         }
 
         
-        private MctsNode MCTS(MctsNode root, int iterations, int rotation)
+        private MctsNode Mcts(MctsNode root, int iterations, int rotation)
         {
             var whoShouldWin = root.PlayerValue.Value;
             
             Expand(root);
             root.Children.ForEach(n =>
             {
-                int reward = Simulate(n, whoShouldWin, rotation);
+                var reward = Simulate(n, whoShouldWin, rotation);
                 Backpropagate(n, reward);
             });
             
-            for (int i = 0; i < iterations; i++)
+            for (var i = 0; i < iterations; i++)
             {
                 // Selection
                 var node = Select(root);
@@ -133,7 +133,7 @@ namespace MonteCarloConsole;
                     Expand(node);
 
                 // Simulation
-                int reward = Simulate(node, whoShouldWin, rotation);
+                var reward = Simulate(node, whoShouldWin, rotation);
 
                 // Backpropagation
                 Backpropagate(node, reward);
@@ -164,13 +164,13 @@ namespace MonteCarloConsole;
             var simulationBoard = (byte[,])node.Board.Clone();
             var currentPlayer = node.PlayerValue;
 
-            int rows = simulationBoard.GetLength(0);
-            int cols = simulationBoard.GetLength(1);
+            var rows = simulationBoard.GetLength(0);
+            var cols = simulationBoard.GetLength(1);
 
             var untakenPositions = new List<(int, int)>();
-            for (int i = 0; i < rows; i++)
+            for (var i = 0; i < rows; i++)
             {
-                for (int j = 0; j < cols; j++)
+                for (var j = 0; j < cols; j++)
                 {
                     if (simulationBoard[i, j] == 0)
                     {
@@ -181,21 +181,21 @@ namespace MonteCarloConsole;
 
             // Shuffle the list to randomize move order
             var random = new Random();
-            for (int i = untakenPositions.Count - 1; i > 0; i--)
+            for (var i = untakenPositions.Count - 1; i > 0; i--)
             {
-                int swapIndex = random.Next(i + 1);
+                var swapIndex = random.Next(i + 1);
                 (untakenPositions[i], untakenPositions[swapIndex]) = (untakenPositions[swapIndex], untakenPositions[i]);
             }
 
             // Alternate players and simulate moves
             foreach (var position in untakenPositions)
             {
-                (int row, int col) = position;
+                (var row, var col) = position;
                 simulationBoard[row, col] = currentPlayer.Value;
                 currentPlayer.Increase();
             }
 
-            PathFinder pathFinder = new PathFinder();
+            var pathFinder = new PathFinder();
 
             var haspath = pathFinder.HasPath(simulationBoard, whoShouldWin, rotation);
             
@@ -208,9 +208,9 @@ namespace MonteCarloConsole;
         
         public void PrintRaw2DArray(byte[,] array)
         {
-            for (int i = 0; i < array.GetLength(0); i++)
+            for (var i = 0; i < array.GetLength(0); i++)
             {
-                for (int j = 0; j < array.GetLength(1); j++)
+                for (var j = 0; j < array.GetLength(1); j++)
                 {
                     // Use fixed-width formatting to align numbers
                     Console.Write($"{(array[i, j] == 255 ? -1 : array[i, j]),3} ");
@@ -231,7 +231,7 @@ namespace MonteCarloConsole;
 
         private MctsNode BestChild(MctsNode node)
         {
-            double maxUcb = double.MinValue;
+            var maxUcb = double.MinValue;
             MctsNode bestChild = null;
 
             var c = 1.0; // Exploration constant
@@ -272,11 +272,11 @@ namespace MonteCarloConsole;
         {
             var children = new List<MctsNode>();
 
-            int rows = node.Board.GetLength(0);
-            int cols = node.Board.GetLength(1);
-            for (int i = 0; i < rows; i++)
+            var rows = node.Board.GetLength(0);
+            var cols = node.Board.GetLength(1);
+            for (var i = 0; i < rows; i++)
             {
-                for (int j = 0; j < cols; j++)
+                for (var j = 0; j < cols; j++)
                 {
                     if (node.Board[i, j] == 0) // Check if the space is unoccupied
                     {

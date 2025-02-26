@@ -9,25 +9,25 @@ public static class GameHelpers
         List<Hex> coordinates = new();
         var index = 0;
 
-        for (int r = -radius; r <= radius; r++)
+        for (var r = -radius; r <= radius; r++)
         {
-            int r1 = Math.Max(-radius, -r - radius);
-            int r2 = Math.Min(radius, -r + radius);
+            var r1 = Math.Max(-radius, -r - radius);
+            var r2 = Math.Min(radius, -r + radius);
 
-            for (int q = r1; q <= r2; q++)
+            for (var q = r1; q <= r2; q++)
             {
-                int s = -r - q;
-                int owner = 0; // Default owner for inner tiles
+                var s = -r - q;
+                var owner = 0; // Default owner for inner tiles
 
                 // Determine edge ownership
-                bool isRedEdge = Math.Abs(q) == radius ;
-                bool isGreenEdge = Math.Abs(r) == radius  ;
-                bool isBlueEdge = Math.Abs(s) == radius;
+                var isRedEdge = Math.Abs(q) == radius ;
+                var isGreenEdge = Math.Abs(r) == radius  ;
+                var isBlueEdge = Math.Abs(s) == radius;
 
                 // Check if the hex is a corner hex (on two edges)
-                bool isCornerHex = (isRedEdge && isGreenEdge) || 
-                                   (isGreenEdge && isBlueEdge) || 
-                                   (isBlueEdge && isRedEdge);
+                var isCornerHex = (isRedEdge && isGreenEdge) || 
+                                  (isGreenEdge && isBlueEdge) || 
+                                  (isBlueEdge && isRedEdge);
 
                 // Assign ownership based on edge, but exclude corners
                 if (!isCornerHex)

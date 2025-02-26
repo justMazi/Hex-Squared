@@ -22,9 +22,9 @@ class Program
 
         var playerTypes = new[]
         {
-            typeof(MctsPlayer),
-            typeof(MctsPlayer),
-            typeof(MctsPlayer),
+            typeof(NeuralNetworkPlayer),
+            typeof(NeuralNetworkPlayer),
+            typeof(RandomPlayer),
         };
 
         var finishedGames = Enumerable.Range(0, numberOfGames).Select(gameNum =>
@@ -94,7 +94,6 @@ class Program
             );
 
         
-        TrainingDataStorage.FlushToDisk();
         
         // Calculate the total number of games and draws
         var totalGames = finishedGames.Count();
@@ -104,7 +103,7 @@ class Program
         Console.WriteLine("Tournament Results:");
         Console.WriteLine("-------------------");
 
-        for (int i = 0; i < aggregatedResults.Count; i++)
+        for (var i = 0; i < aggregatedResults.Count; i++)
         {
             var winCount = aggregatedResults[i];
             var winPercentage = (double)winCount / totalGames * 100;

@@ -1,10 +1,16 @@
 ﻿
+using Microsoft.ML.OnnxRuntime;
+
 namespace Domain.Players.MCTS;
 
-public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
+public class MctsNeuralNetworkPlayer(int playerNum) : AiPlayer(playerNum)
 {
+    private static readonly InferenceSession Session = new("V:/MFF/bakalarka/Hex-Squared/ai/three_player_hex2.onnx");
+
     public override Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
     {
+        
+        throw new NotImplementedException("abcd, toto se musi dodelat");
         var playableIndexes = new HashSet<int>(game.PlayableHexagons.Select(hex => hex.Index));
 
         var hexes = game.Hexagons.Select(h =>
@@ -25,18 +31,19 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
             _ => throw new Exception("Invalid player")
         };
 
-        var indices = game.To2DArrayIndices(hexes);
+        var rotatedHexes = MctsHelpers.HexRotation.RotateHexes(hexes, rotation);
+        var indices = game.To2DArrayIndices(rotatedHexes);
 
-        // data augumentation
-        var rotatedHexes2 = MctsHelpers.HexRotation.RotateHexes(hexes, 1);
+        var rotatedHexes2 = MctsHelpers.HexRotation.RotateHexes(rotatedHexes, 1);
         var indices2 = game.To2DArrayIndices(rotatedHexes2);
+
         var rotatedHexes3 = MctsHelpers.HexRotation.RotateHexes(rotatedHexes2, 1);
         var indices3 = game.To2DArrayIndices(rotatedHexes3);
 
-        var d2Rotate = game.To2DArray(hexes);
+        var d2Rotate = game.To2DArray(rotatedHexes);
         var root = new MctsNode(d2Rotate, null, (byte)game.CurrentMovePlayerIndex.Value);
 
-        const int iterations = 4_000;
+        const int iterations = 8_000;
         Mcts(root, iterations, rotation);
 
         MctsTrainingData.AddTrainingSample(root, game.CurrentMovePlayerIndex.Value, false);

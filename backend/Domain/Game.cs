@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using Domain.Players;
+using Domain.Players.MCTS;
 using LanguageExt;
 using static LanguageExt.Prelude;
 
@@ -107,11 +108,19 @@ public record Game(
         
         var isDraw = IsDraw(updatedHexagons, Players);
 
+        if (isDraw)
+        {
+            TrainingDataStorage.FlushToDisk(-1);
+        }
+        
         var won = TrySetWinState(updatedHexagons, player);
 
         if (won.IsSome)
         {
             Players[player.PlayerNum-1].NumberOfWins++;
+            
+            TrainingDataStorage.FlushToDisk(Players[player.PlayerNum-1].PlayerNum);
+
         }
         
         LastChange = DateTime.Now;
@@ -246,7 +255,7 @@ public record Game(
             };        
         }
 
-        Domain.CurrentMovePlayerIndex newPlayerIndex = CurrentMovePlayerIndex;
+        var newPlayerIndex = CurrentMovePlayerIndex;
         if (CurrentMovePlayerIndex.Value == concedingPlayerIndex+1)
         {
             while (Players[newPlayerIndex-1].GaveUp)
@@ -284,13 +293,13 @@ public record Game(
     public short[,] To2DArrayIndices(IReadOnlyList<Hex> updatedHexagons)
     {
         // Calculate array dimensions
-        int size = 2 * Radius + 3; // Ensure the board size matches the hexagonal bounds
-        Int16[,] array = new Int16[size, size];
+        var size = 2 * Radius + 3; // Ensure the board size matches the hexagonal bounds
+        var array = new Int16[size, size];
 
         // Initialize the array with -1 (unplayable spaces)
-        for (int i = 0; i < size; i++)
+        for (var i = 0; i < size; i++)
         {
-            for (int j = 0; j < size; j++)
+            for (var j = 0; j < size; j++)
             {
                 array[i, j] = 255; // Using 255 to represent -1 since byte cannot hold negative values
             }
@@ -298,8 +307,8 @@ public record Game(
         // Map axial coordinates to array indices
         foreach (var hex in updatedHexagons)
         {
-            int row = hex.R + Radius+1; // Shift R coordinate to positive indices
-            int col = hex.Q + Radius+1; // Shift Q coordinate to positive indices
+            var row = hex.R + Radius+1; // Shift R coordinate to positive indices
+            var col = hex.Q + Radius+1; // Shift Q coordinate to positive indices
 
             // Check bounds to ensure no index out of range occurs
             if (row >= 0 && row < size && col >= 0 && col < size)
@@ -322,13 +331,13 @@ public record Game(
     public byte[,] To2DArray(IReadOnlyList<Hex> updatedHexagons)
     {
         // Calculate array dimensions
-        int size = 2 * Radius + 3; // Ensure the board size matches the hexagonal bounds
-        byte[,] array = new byte[size, size];
+        var size = 2 * Radius + 3; // Ensure the board size matches the hexagonal bounds
+        var array = new byte[size, size];
 
         // Initialize the array with -1 (unplayable spaces)
-        for (int i = 0; i < size; i++)
+        for (var i = 0; i < size; i++)
         {
-            for (int j = 0; j < size; j++)
+            for (var j = 0; j < size; j++)
             {
                 array[i, j] = 255; // Using 255 to represent -1 since byte cannot hold negative values
             }
@@ -336,8 +345,8 @@ public record Game(
         // Map axial coordinates to array indices
         foreach (var hex in updatedHexagons)
         {
-            int row = hex.R + Radius+1; // Shift R coordinate to positive indices
-            int col = hex.Q + Radius+1; // Shift Q coordinate to positive indices
+            var row = hex.R + Radius+1; // Shift R coordinate to positive indices
+            var col = hex.Q + Radius+1; // Shift Q coordinate to positive indices
 
             // Check bounds to ensure no index out of range occurs
             if (row >= 0 && row < size && col >= 0 && col < size)
@@ -359,9 +368,9 @@ public record Game(
     
     public void PrintRaw2DArray(byte[,] array)
     {
-        for (int i = 0; i < array.GetLength(0); i++)
+        for (var i = 0; i < array.GetLength(0); i++)
         {
-            for (int j = 0; j < array.GetLength(1); j++)
+            for (var j = 0; j < array.GetLength(1); j++)
             {
                 // Use fixed-width formatting to align numbers
                 Console.Write($"{(array[i, j] == 255 ? -1 : array[i, j]),3} ");
@@ -374,9 +383,9 @@ public record Game(
 
     public void PrintRaw2DArray(short[,] array)
     {
-        for (int i = 0; i < array.GetLength(0); i++)
+        for (var i = 0; i < array.GetLength(0); i++)
         {
-            for (int j = 0; j < array.GetLength(1); j++)
+            for (var j = 0; j < array.GetLength(1); j++)
             {
                 // Use fixed-width formatting to align numbers
                 Console.Write($"{(array[i, j] == 255 ? -1 : array[i, j]),3} ");
