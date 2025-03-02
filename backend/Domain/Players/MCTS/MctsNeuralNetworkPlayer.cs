@@ -1,5 +1,5 @@
-﻿
-using Microsoft.ML.OnnxRuntime;
+﻿using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace Domain.Players.MCTS;
 
@@ -9,125 +9,57 @@ public class MctsNeuralNetworkPlayer(int playerNum) : AiPlayer(playerNum)
 
     public override Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
     {
-        
-        throw new NotImplementedException("abcd, toto se musi dodelat");
         var playableIndexes = new HashSet<int>(game.PlayableHexagons.Select(hex => hex.Index));
-
+        
         var hexes = game.Hexagons.Select(h =>
         {
             if (!playableIndexes.Contains(h.Index) && h.Owner == 0)
             {
                 return h.SetPlayer(5);
             }
-
             return h;
         }).ToList();
         
         var rotation = game.CurrentMovePlayerIndex.Value switch
         {
-            1 => 0,  // No rotation needed
-            2 => 1,  // 60° Clockwise
-            3 => 2,  // 120° Clockwise
+            1 => 0,
+            2 => 1,
+            3 => 2,
             _ => throw new Exception("Invalid player")
         };
 
         var rotatedHexes = MctsHelpers.HexRotation.RotateHexes(hexes, rotation);
         var indices = game.To2DArrayIndices(rotatedHexes);
-
-        var rotatedHexes2 = MctsHelpers.HexRotation.RotateHexes(rotatedHexes, 1);
-        var indices2 = game.To2DArrayIndices(rotatedHexes2);
-
-        var rotatedHexes3 = MctsHelpers.HexRotation.RotateHexes(rotatedHexes2, 1);
-        var indices3 = game.To2DArrayIndices(rotatedHexes3);
-
+        
         var d2Rotate = game.To2DArray(rotatedHexes);
         var root = new MctsNode(d2Rotate, null, (byte)game.CurrentMovePlayerIndex.Value);
 
-        const int iterations = 8_000;
-        Mcts(root, iterations, rotation);
+        const int iterations = 400;
+        Mcts(root, iterations);
 
-        MctsTrainingData.AddTrainingSample(root, game.CurrentMovePlayerIndex.Value, false);
-        MctsTrainingData.AddTrainingSample(RemapTrainingData(root, indices2), game.CurrentMovePlayerIndex.Value, true);
-        MctsTrainingData.AddTrainingSample(RemapTrainingData(root, indices3), game.CurrentMovePlayerIndex.Value, true);
-        
         var final = root.Children.MaxBy(child => child.TotalVisits);
         var (col, row) = final.CoordinatesOfMove.Value;
-        
         var index = indices[col, row];
         
         return Task.FromResult((int)index);
     }
 
-    private static MctsNode RemapTrainingData(MctsNode root, short[,] rotationIndices)
+    private static MctsNode Mcts(MctsNode root, int iterations)
     {
-        var size = root.Board.GetLength(0);
-        var rotatedBoard = new byte[size, size];
-
-        // Remap board state using rotation indices
-        for (var i = 0; i < size; i++)
-        {
-            for (var j = 0; j < size; j++)
-            {
-                var rotatedIndex = rotationIndices[i, j];
-                if (rotatedIndex == 255) continue; // Ignore unplayable spaces
-
-                var originalI = rotatedIndex / size;
-                var originalJ = rotatedIndex % size;
-                rotatedBoard[i, j] = root.Board[originalI, originalJ];
-            }
-        }
-
-        var rotatedRoot = new MctsNode(rotatedBoard, null, root.PlayerValue)
-        {
-            TotalReward = root.TotalReward,
-            TotalVisits = root.TotalVisits,
-            IsTerminal = root.IsTerminal
-        };
-
-        foreach (var child in root.Children)
-        {
-            var rotatedIndex = rotationIndices[child.CoordinatesOfMove.Value.i, child.CoordinatesOfMove.Value.j];
-            if (rotatedIndex == 255) continue;
-
-            var rotatedI = rotatedIndex / size;
-            var rotatedJ = rotatedIndex % size;
-
-            rotatedRoot.Children.Add(new MctsNode(rotatedBoard, rotatedRoot, child.PlayerValue, (rotatedI, rotatedJ))
-            {
-                TotalReward = child.TotalReward,
-                TotalVisits = child.TotalVisits,
-                IsTerminal = child.IsTerminal
-            });
-        }
-
-        return rotatedRoot;
-    }
-
-
-    private static MctsNode Mcts(MctsNode root, int iterations, int rotation)
-    {
-        var whoShouldWin = root.PlayerValue;
-        
         Expand(root);
         root.Children.ForEach(n =>
         {
-            var reward = Simulate(n, whoShouldWin, rotation);
+            var reward = EvaluateWithNeuralNetwork(n);
             Backpropagate(n, reward);
         });
         
         for (var i = 0; i < iterations; i++)
         {
-            // Selection
             var node = Select(root);
-
-            // Expansion
             if (!node.IsTerminal)
                 Expand(node);
 
-            // Simulation
-            var reward = Simulate(node, whoShouldWin, rotation);
-
-            // Backpropagation
+            var reward = EvaluateWithNeuralNetwork(node);
             Backpropagate(node, reward);
         }
 
@@ -145,71 +77,44 @@ public class MctsNeuralNetworkPlayer(int playerNum) : AiPlayer(playerNum)
 
     private static void Expand(MctsNode node)
     {
-        // Generate child nodes based on possible moves
-        var children = GenerateChildren(node);
-        node.Children.AddRange(children);
+        node.Children.AddRange(GenerateChildren(node));
     }
 
-    private static int Simulate(MctsNode node, byte whoShouldWin, int rotation)
+    private static float EvaluateWithNeuralNetwork(MctsNode node)
     {
-        var simulationBoard = (byte[,])node.Board.Clone();
-        var currentPlayer = node.PlayerValue;
-
-        var rows = simulationBoard.GetLength(0);
-        var cols = simulationBoard.GetLength(1);
-
-        var untakenPositions = new List<(int, int)>();
-        for (var i = 0; i < rows; i++)
+        var boardTensor = ConvertBoardToTensor(node.Board);
+        var results = Session.Run(new List<NamedOnnxValue>
         {
-            for (var j = 0; j < cols; j++)
-            {
-                if (simulationBoard[i, j] == 0)
-                {
-                    untakenPositions.Add((i, j));
-                }
-            }
-        }
+            NamedOnnxValue.CreateFromTensor("board", boardTensor)
+        });
 
-        // Shuffle the list to randomize move order
-        var random = new Random();
-        for (var i = untakenPositions.Count - 1; i > 0; i--)
-        {
-            var swapIndex = random.Next(i + 1);
-            (untakenPositions[i], untakenPositions[swapIndex]) = (untakenPositions[swapIndex], untakenPositions[i]);
-        }
-
-        // Alternate players and simulate moves
-        foreach (var position in untakenPositions)
-        {
-            (var row, var col) = position;
-            simulationBoard[row, col] = currentPlayer;
-            currentPlayer = (byte)((currentPlayer % 3) + 1);
-        }
-
-        var pathFinder = new PathFinder();
-
-        
-        // Check if any other player has a winning path
-        foreach (var player in new[] { 1, 2, 3 })
-        {
-            if (player != whoShouldWin && pathFinder.HasPath(simulationBoard, player, whoShouldWin-1))
-            {
-                return -1; // Some other player wins
-            }
-        }
-        
-        // Check if the desired player has a winning path
-        if (pathFinder.HasPath(simulationBoard, whoShouldWin, whoShouldWin-1))
-        {
-            return 1; // Desired player wins
-        }
-        
-
-        // If no one wins, it's a draw
-        return 0;
+        return results.Last().AsTensor<float>().First();
     }
-    
-    private static void Backpropagate(MctsNode node, int reward)
+
+    private static float[,] EvaluatePolicyForNode(MctsNode node)
+    {
+        var boardTensor = ConvertBoardToTensor(node.Board);
+        var results = Session.Run(new List<NamedOnnxValue>
+        {
+            NamedOnnxValue.CreateFromTensor("board", boardTensor)
+        });
+
+        var policyOutput = results.First().AsTensor<float>().ToArray();
+        var size = node.Board.GetLength(0);
+        var policyMatrix = new float[size, size];
+
+        for (var i = 0; i < size; i++)
+        {
+            for (var j = 0; j < size; j++)
+            {
+                policyMatrix[i, j] = policyOutput[i * size + j];
+            }
+        }
+
+        return policyMatrix;
+    }
+
+    private static void Backpropagate(MctsNode node, float reward)
     {
         while (node != null)
         {
@@ -221,63 +126,70 @@ public class MctsNeuralNetworkPlayer(int playerNum) : AiPlayer(playerNum)
 
     private static MctsNode BestChild(MctsNode node)
     {
-        var maxUcb = double.MinValue;
+        var maxScore = double.MinValue;
         MctsNode bestChild = null;
-
-        var c = 1.0; // Exploration constant
-        double ucb;
+        
+        var c = 1.0; 
+        var policyOutput = EvaluatePolicyForNode(node);
 
         foreach (var child in node.Children)
         {
-            if (child.TotalVisits == 0)
-            {
-                // Assign a very high value to unexplored nodes to prioritize them
-                ucb = double.MaxValue;
-            }
-            else
-            {
-                // Calculate UCB for explored nodes
-                ucb = (child.TotalReward / (double)child.TotalVisits) +
-                      c * Math.Sqrt(2 * Math.Log(node.TotalVisits) / child.TotalVisits);
-            }
+            double ucb = child.TotalVisits == 0
+                ? double.MaxValue
+                : (child.TotalReward / (double)child.TotalVisits) +
+                  c * Math.Sqrt(2 * Math.Log(node.TotalVisits) / child.TotalVisits);
 
-            // Update the best child based on the UCB value
-            if (ucb > maxUcb)
+            var policyScore = policyOutput[child.CoordinatesOfMove.Value.i, child.CoordinatesOfMove.Value.j];
+            var score = 0.3 * policyScore + 0.7 * ucb;
+
+            if (score > maxScore)
             {
-                maxUcb = ucb;
+                maxScore = score;
                 bestChild = child;
             }
         }
 
-        if (bestChild == null)
-        {
-            throw new InvalidOperationException("No valid child found. This indicates a problem in the tree structure.");
-        }
-
-        return bestChild;
+        return bestChild ?? throw new InvalidOperationException("No valid child found.");
     }
-        
+    
     private static List<MctsNode> GenerateChildren(MctsNode node)
     {
         var children = new List<MctsNode>();
-
-        var rows = node.Board.GetLength(0);
-        var cols = node.Board.GetLength(1);
-        for (var i = 0; i < rows; i++)
+        var size = node.Board.GetLength(0);
+        for (var i = 0; i < size; i++)
         {
-            for (var j = 0; j < cols; j++)
+            for (var j = 0; j < size; j++)
             {
-                if (node.Board[i, j] == 0) // Check if the space is unoccupied
+                if (node.Board[i, j] == 0)
                 {
                     var newBoard = (byte[,])node.Board.Clone();
                     newBoard[i, j] = node.PlayerValue;
                     
                     var newPlayerVal = (byte)((node.PlayerValue % 3) + 1);
-                    children.Add(new MctsNode(newBoard, node, newPlayerVal, (i,j)));
+                    children.Add(new MctsNode(newBoard, node, newPlayerVal, (i, j)));
+                }
+            }
+        }
+        return children;
+    }
+
+    private static DenseTensor<float> ConvertBoardToTensor(byte[,] board)
+    {
+        var size = board.GetLength(0);
+        var tensorData = new float[1, 3, size, size];
+
+        for (var i = 0; i < size; i++)
+        {
+            for (var j = 0; j < size; j++)
+            {
+                if (board[i, j] > 0 && board[i, j] <= 3)
+                {
+                    tensorData[0, board[i, j] - 1, i, j] = 1f;
                 }
             }
         }
 
-        return children;
+        var flattenedData = tensorData.Cast<float>().ToArray();
+        return new DenseTensor<float>(flattenedData, new[] { 1, 3, size, size });
     }
 }

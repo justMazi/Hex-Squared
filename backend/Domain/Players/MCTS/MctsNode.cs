@@ -3,7 +3,7 @@
 public class MctsNode
 {
     public readonly byte[,] Board = new byte[7, 7];
-    public int TotalReward = 0;
+    public float TotalReward = 0;
     public int TotalVisits = 0;
     public readonly List<MctsNode> Children = new();
     public readonly MctsNode? Parent = null;

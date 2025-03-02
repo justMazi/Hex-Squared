@@ -9,6 +9,11 @@
     <ItemGroup>
       <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-34" />
       <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
+      <PackageReference Include="TorchSharp" Version="0.105.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Players\Evolution\" />
     </ItemGroup>
 
 </Project>

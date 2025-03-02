@@ -1,7 +1,7 @@
-﻿
-namespace Domain.Players.MCTS;
+﻿namespace Domain.Players.MCTS;
 
-public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
+
+public class MctsBetterRolloutPlayer(int playerNum) : AiPlayer(playerNum)
 {
     public override Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
     {
@@ -32,60 +32,17 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         var d2Rotate = game.To2DArray(rotatedHexes);
         var root = new MctsNode(d2Rotate, null, (byte)game.CurrentMovePlayerIndex.Value);
 
-        const int iterations = 4_000;
+        const int iterations = 350;
         Mcts(root, iterations, rotation);
         
         var final = root.Children.MaxBy(child => child.TotalVisits);
         var (col, row) = final.CoordinatesOfMove.Value;
+
+        // Console.WriteLine($"Player {playerNum} has {final.TotalVisits} visits and {final.TotalReward} rewards");
         
         var index = indices[col, row];
         
         return Task.FromResult((int)index);
-    }
-
-    private static MctsNode RemapTrainingData(MctsNode root, short[,] rotationIndices)
-    {
-        var size = root.Board.GetLength(0);
-        var rotatedBoard = new byte[size, size];
-
-        // Remap board state using rotation indices
-        for (var i = 0; i < size; i++)
-        {
-            for (var j = 0; j < size; j++)
-            {
-                var rotatedIndex = rotationIndices[i, j];
-                if (rotatedIndex == 255) continue; // Ignore unplayable spaces
-
-                var originalI = rotatedIndex / size;
-                var originalJ = rotatedIndex % size;
-                rotatedBoard[i, j] = root.Board[originalI, originalJ];
-            }
-        }
-
-        var rotatedRoot = new MctsNode(rotatedBoard, null, root.PlayerValue)
-        {
-            TotalReward = root.TotalReward,
-            TotalVisits = root.TotalVisits,
-            IsTerminal = root.IsTerminal
-        };
-
-        foreach (var child in root.Children)
-        {
-            var rotatedIndex = rotationIndices[child.CoordinatesOfMove.Value.i, child.CoordinatesOfMove.Value.j];
-            if (rotatedIndex == 255) continue;
-
-            var rotatedI = rotatedIndex / size;
-            var rotatedJ = rotatedIndex % size;
-
-            rotatedRoot.Children.Add(new MctsNode(rotatedBoard, rotatedRoot, child.PlayerValue, (rotatedI, rotatedJ))
-            {
-                TotalReward = child.TotalReward,
-                TotalVisits = child.TotalVisits,
-                IsTerminal = child.IsTerminal
-            });
-        }
-
-        return rotatedRoot;
     }
 
 
@@ -96,7 +53,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         Expand(root);
         root.Children.ForEach(n =>
         {
-            var reward = Simulate(n, whoShouldWin);
+            var reward = Simulate(n, whoShouldWin, rotation);
             Backpropagate(n, reward);
         });
         
@@ -110,7 +67,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
                 Expand(node);
 
             // Simulation
-            var reward = Simulate(node, whoShouldWin);
+            var reward = Simulate(node, whoShouldWin, rotation);
 
             // Backpropagation
             Backpropagate(node, reward);
@@ -134,45 +91,69 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         var children = GenerateChildren(node);
         node.Children.AddRange(children);
     }
-
-    private static int Simulate(MctsNode node, byte whoShouldWin)
+    
+    
+    
+    private static int Simulate(MctsNode node, byte whoShouldWin, int rotation)
     {
         var simulationBoard = (byte[,])node.Board.Clone();
-        var currentPlayer = node.PlayerValue;
-
+        
+        
         var rows = simulationBoard.GetLength(0);
         var cols = simulationBoard.GetLength(1);
+        var pathFinder = new PathFinder();
+    
+        byte currentPlayer = 1; // Start with player 1
+        var random = new Random();
 
-        var untakenPositions = new List<(int, int)>();
-        for (var i = 0; i < rows; i++)
+        while (true) // Keep playing until there's a winner
         {
-            for (var j = 0; j < cols; j++)
+            var path = pathFinder.FindPathWithUntakenCells(simulationBoard, currentPlayer, rotation);
+
+
+
+            if (path.Count > 0)
+            { 
+                var randomIndex = Random.Shared.Next(0, path.Count);
+
+                var middleUntakenCell = path[randomIndex];
+                
+                var (row, col) = middleUntakenCell;
+                // Use the middle untaken cell, e.g., place a piece there
+                simulationBoard[row, col] = currentPlayer;            }
+            else
             {
-                if (simulationBoard[i, j] == 0)
+                // Play randomly if the middle hex is occupied or unavailable
+                var emptyHexes = new List<(int Row, int Col)>();
+
+                for (int r = 0; r < rows; r++)
                 {
-                    untakenPositions.Add((i, j));
+                    for (int c = 0; c < cols; c++)
+                    {
+                        if (simulationBoard[r, c] == 0)
+                        {
+                            emptyHexes.Add((r, c));
+                        }
+                    }
+                }
+
+                if (emptyHexes.Count > 0)
+                {
+                    var (randRow, randCol) = emptyHexes[random.Next(emptyHexes.Count)];
+                    simulationBoard[randRow, randCol] = currentPlayer;
+                }
+                else
+                {
+                    break;
                 }
             }
-        }
-
-        // Shuffle the list to randomize move order
-        var random = new Random();
-        for (var i = untakenPositions.Count - 1; i > 0; i--)
-        {
-            var swapIndex = random.Next(i + 1);
-            (untakenPositions[i], untakenPositions[swapIndex]) = (untakenPositions[swapIndex], untakenPositions[i]);
-        }
-
-        // Alternate players and simulate moves
-        foreach (var position in untakenPositions)
-        {
-            (var row, var col) = position;
-            simulationBoard[row, col] = currentPlayer;
+            
+            
             currentPlayer = (byte)((currentPlayer % 3) + 1);
         }
-
-        var pathFinder = new PathFinder();
-
+        
+// PrintRaw2DArray(simulationBoard);
+        
         
         // Check if any other player has a winning path
         foreach (var player in new[] { 1, 2, 3 })
@@ -192,6 +173,23 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
 
         // If no one wins, it's a draw
         return 0;
+        
+    }
+
+
+    public static void PrintRaw2DArray(byte[,] array)
+    {
+        for (var i = 0; i < array.GetLength(0); i++)
+        {
+            for (var j = 0; j < array.GetLength(1); j++)
+            {
+                // Use fixed-width formatting to align numbers
+                Console.Write($"{(array[i, j] == 255 ? -1 : array[i, j]),3} ");
+            }
+            Console.WriteLine(); // New line after each row
+        }
+        Console.WriteLine();
+
     }
     
     private static void Backpropagate(MctsNode node, int reward)
@@ -204,6 +202,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         }
     }
 
+    
     private static MctsNode BestChild(MctsNode node)
     {
         var maxUcb = double.MinValue;

@@ -4,14 +4,14 @@ using Domain.Players;
 using Domain.Players.MCTS;
 using Infrastructure.Repositories;
 
-namespace Tournaments;
+namespace Experiments;
 
 class Program
 {
     static async Task Main(string[] args)
     {
         var radius = 6;
-        const int numberOfGames = 100; 
+        const int numberOfGames = 1; 
         
         
         var gameRepository = new GameRepository();
@@ -22,8 +22,8 @@ class Program
 
         var playerTypes = new[]
         {
-            typeof(NeuralNetworkPlayer),
-            typeof(NeuralNetworkPlayer),
+            typeof(MctsNeuralNetworkPlayer),
+            typeof(RandomPlayer),
             typeof(RandomPlayer),
         };
 
@@ -52,7 +52,7 @@ class Program
                 var currentPlayer = game.Players[game.CurrentMovePlayerIndex - 1];
 
                 if (currentPlayer is not AiPlayer player)
-                    throw new Exception($"Tournaments allow only {nameof(AiPlayer)} players");
+                    throw new Exception($"Experiments allow only {nameof(AiPlayer)} players");
 
                 var bestMoveIndex = player.CalculateBestMoveAsync(game, cancellationToken).GetAwaiter().GetResult();
 
