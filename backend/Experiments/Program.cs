@@ -1,4 +1,9 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Domain;
 using Domain.Players;
 using Domain.Players.MCTS;
@@ -10,22 +15,59 @@ class Program
 {
     static async Task Main(string[] args)
     {
+        
+        // Discover all available AI players dynamically
+        var availablePlayers = Assembly.GetAssembly(typeof(AiPlayer))
+            .GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(AiPlayer).IsAssignableFrom(t))
+            .ToDictionary(t => t.Name, t => t);
+
+        Type[] playerTypes;
+
+        if (args.Length == 3)
+        {
+            try
+            {
+                playerTypes = args.Select(name =>
+                {
+                    if (!availablePlayers.TryGetValue(name, out var type))
+                    {
+                        throw new ArgumentException($"Unknown player type: {name}");
+                    }
+                    return type;
+                }).ToArray();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return;
+            }
+        }
+        else
+        {
+            // Default player setup if no arguments are given
+            playerTypes = new[]
+            {
+                typeof(NeuralNetworkPlayer),
+                typeof(RandomPlayer),
+                typeof(RandomPlayer),
+            };
+        }
+
+        Console.WriteLine("Using players:");
+        foreach (var type in playerTypes)
+        {
+            Console.WriteLine($"- {type.Name}");
+        }
+
         var radius = 6;
-        const int numberOfGames = 1; 
-        
-        
+        const int numberOfGames = 1;
+
         var gameRepository = new GameRepository();
         var cancellationToken = new CancellationToken();
 
         var clock = new Stopwatch();
         clock.Start();
-
-        var playerTypes = new[]
-        {
-            typeof(MctsNeuralNetworkPlayer),
-            typeof(RandomPlayer),
-            typeof(RandomPlayer),
-        };
 
         var finishedGames = Enumerable.Range(0, numberOfGames).Select(gameNum =>
         {
@@ -64,14 +106,7 @@ class Program
                     Some: updatedGame =>
                     {
                         gameRepository.SaveGame(updatedGame);
-
-                        if (currentPlayer is MctsPlayer)
-                        {
-                            // updatedGame.PrintRaw2DArray(updatedGame.To2DArray());
-                            // Console.WriteLine("==================================================");
-                        }
                         return updatedGame;
-                        
                     },
                     None: () => throw new Exception("Failed to make a move")
                 );
@@ -93,8 +128,6 @@ class Program
                 (acc, gameResult) => acc.Zip(gameResult, (a, b) => a + b).ToList()
             );
 
-        
-        
         // Calculate the total number of games and draws
         var totalGames = finishedGames.Count();
         var totalDraws = totalGames - aggregatedResults.Sum(); // Assuming 1 win per game if no draws
@@ -113,7 +146,5 @@ class Program
 
         var drawPercentage = (double)totalDraws / totalGames * 100;
         Console.WriteLine($"Draws: {totalDraws} games ({drawPercentage:F2}%)");
-
-  
     }
 }

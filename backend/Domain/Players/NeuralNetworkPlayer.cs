@@ -6,21 +6,15 @@ namespace Domain.Players;
 
 public class NeuralNetworkPlayer(int playerNum) : AiPlayer(playerNum)
 {
-    private static readonly InferenceSession Session = new("V:/MFF/bakalarka/Hex-Squared/ai/three_player_hex2.onnx");
+    private static readonly InferenceSession Session = new(Path.Combine(AppContext.BaseDirectory, "Resources", "three_player_hex2.onnx"));
     
     public override Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
     {
         // Step 1: Get the playable hexagons
         var playableIndexes = new HashSet<int>(game.PlayableHexagons.Select(h => h.Index));
 
-        // Step 2: Rotate board for the current player's perspective
-        var rotation = game.CurrentMovePlayerIndex.Value switch
-        {
-            1 => 0,  // No rotation
-            2 => 1,  // 60° Clockwise
-            3 => 2,  // 120° Clockwise
-            _ => throw new Exception("Invalid player")
-        };
+        var rotation = game.CurrentMovePlayerIndex.Value - 1;
+
 
         var rotatedHexes = MctsHelpers.HexRotation.RotateHexes(game.Hexagons, rotation);
 

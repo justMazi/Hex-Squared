@@ -5,7 +5,7 @@ namespace Domain.Players.MCTS;
 
 public class MctsNeuralNetworkPlayer(int playerNum) : AiPlayer(playerNum)
 {
-    private static readonly InferenceSession Session = new("V:/MFF/bakalarka/Hex-Squared/ai/three_player_hex2.onnx");
+    private static readonly InferenceSession Session = new(Path.Combine(AppContext.BaseDirectory, "Resources", "three_player_hex2.onnx"));
 
     public override Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
     {
@@ -19,14 +19,8 @@ public class MctsNeuralNetworkPlayer(int playerNum) : AiPlayer(playerNum)
             }
             return h;
         }).ToList();
-        
-        var rotation = game.CurrentMovePlayerIndex.Value switch
-        {
-            1 => 0,
-            2 => 1,
-            3 => 2,
-            _ => throw new Exception("Invalid player")
-        };
+
+        var rotation = game.CurrentMovePlayerIndex.Value - 1;
 
         var rotatedHexes = MctsHelpers.HexRotation.RotateHexes(hexes, rotation);
         var indices = game.To2DArrayIndices(rotatedHexes);

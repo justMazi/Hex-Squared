@@ -17,13 +17,8 @@ public class MctsBetterRolloutPlayer(int playerNum) : AiPlayer(playerNum)
             return h;
         }).ToList();
         
-        var rotation = game.CurrentMovePlayerIndex.Value switch
-        {
-            1 => 0,  // No rotation needed
-            2 => 1,  // 60° Clockwise
-            3 => 2,  // 120° Clockwise
-            _ => throw new Exception("Invalid player")
-        };
+        var rotation = game.CurrentMovePlayerIndex.Value - 1;
+
 
         
         var rotatedHexes = MctsHelpers.HexRotation.RotateHexes(hexes, rotation);
