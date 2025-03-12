@@ -1,9 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Domain.Players;
+﻿namespace Domain.Players;
 
 public class PathFinderHeuristic(int playerNum) : AiPlayer(playerNum)
 {

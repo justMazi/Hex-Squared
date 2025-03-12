@@ -1,9 +1,6 @@
-﻿using System;
-using System.Diagnostics;
-using System.Linq;
+﻿using System.Diagnostics;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Text.Json;
 using Domain;
 using Domain.Players;
 using Domain.Players.MCTS;
@@ -15,136 +12,188 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        
-        // Discover all available AI players dynamically
         var availablePlayers = Assembly.GetAssembly(typeof(AiPlayer))
             .GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && typeof(AiPlayer).IsAssignableFrom(t))
             .ToDictionary(t => t.Name, t => t);
 
-        Type[] playerTypes;
+        Type[] playerTypes = availablePlayers.Values.ToArray();
 
-        if (args.Length == 3)
+        var playerCombinations =  new List<Type[]>()
         {
-            try
-            {
-                playerTypes = args.Select(name =>
-                {
-                    if (!availablePlayers.TryGetValue(name, out var type))
-                    {
-                        throw new ArgumentException($"Unknown player type: {name}");
-                    }
-                    return type;
-                }).ToArray();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-                return;
-            }
-        }
-        else
-        {
-            // Default player setup if no arguments are given
-            playerTypes = new[]
-            {
-                typeof(NeuralNetworkPlayer),
-                typeof(RandomPlayer),
-                typeof(RandomPlayer),
-            };
+            
+        
+        
+        new []{
+            typeof(PathFinderHeuristic),
+            typeof(PathFinderHeuristic),
+            typeof(NeuralNetworkPlayer),
         }
 
-        Console.WriteLine("Using players:");
-        foreach (var type in playerTypes)
+        };
+        
+        /*
+        var playerCombinations = new List<Type[]>();
+
+        // Case 1: Each player type appears once, with RandomPlayer
+        playerCombinations.Add(new[] { playerTypes[0], playerTypes[1], typeof(RandomPlayer) });
+
+        // Case 2: Each player type appears twice, the third player is the other type
+        playerCombinations.Add(new[] { playerTypes[0], playerTypes[0], playerTypes[1] });
+        playerCombinations.Add(new[] { playerTypes[1], playerTypes[1], playerTypes[0] });
+
+        playerCombinations = playerCombinations.Take(1).ToList();
+        // Print results
+        foreach (var combination in playerCombinations)
         {
-            Console.WriteLine($"- {type.Name}");
+            Console.WriteLine($"[{string.Join(", ", combination.Select(t => t.Name))}]");
         }
+
+        Console.WriteLine($"Total player combinations: {playerCombinations.Count} made of {playerTypes.Length} players");
+        */
 
         var radius = 6;
-        const int numberOfGames = 1;
-
+        const int numberOfGames = 100;
         var gameRepository = new GameRepository();
         var cancellationToken = new CancellationToken();
-
         var clock = new Stopwatch();
         clock.Start();
 
-        var finishedGames = Enumerable.Range(0, numberOfGames).Select(gameNum =>
+        Dictionary<string, int> totalWins = playerTypes.ToDictionary(t => t.Name, t => 0);
+        int totalDraws = 0;
+        string resultsFile = "tournament_results.json";
+        var tournamentResults = new List<object>();
+
+        
+        foreach (var combination in playerCombinations)
         {
-            var players = playerTypes
-                .Select((type, index) => Activator.CreateInstance(type, index + 1) as Player)
-                .ToList();
+            Console.WriteLine($"Running games for combination: {string.Join(", ", combination.Select(p => p.Name))}");
+            Dictionary<string, int> matchWins = new Dictionary<string, int>();
+            int matchDraws = 0;
 
-            var game = gameRepository.CreateNewGame(new GameId(gameNum.ToString()), radius, typeof(MctsPlayer));
-
-            foreach (var player in players)
+            foreach (var player in combination.Distinct())
             {
-                game = game.PickColor(player, player.PlayerNum).Match(
-                    Some: updatedGame =>
-                    {
-                        gameRepository.SaveGame(updatedGame);
-                        return updatedGame;
-                    },
-                    None: () => throw new Exception("Couldn't pick the color")
-                );
+                matchWins[player.Name] = 0;
             }
 
-            while (game.GameState != GameState.Finished)
+            for (int gameNum = 0; gameNum < numberOfGames; gameNum++)
             {
-                var currentPlayer = game.Players[game.CurrentMovePlayerIndex - 1];
+                var players = combination
+                    .Select((type, index) => Activator.CreateInstance(type, index + 1) as Player)
+                    .ToList();
 
-                if (currentPlayer is not AiPlayer player)
-                    throw new Exception($"Experiments allow only {nameof(AiPlayer)} players");
+                var id = Guid.NewGuid().ToString().Substring(0, 10);
+                var game = gameRepository.CreateNewGame(new GameId(id), radius, typeof(MctsPlayer));
 
-                var bestMoveIndex = player.CalculateBestMoveAsync(game, cancellationToken).GetAwaiter().GetResult();
+                foreach (var player in players)
+                {
+                    game = game.PickColor(player, player.PlayerNum).Match(
+                        Some: updatedGame =>
+                        {
+                            gameRepository.SaveGame(updatedGame);
+                            return updatedGame;
+                        },
+                        None: () => throw new Exception("Couldn't pick the color")
+                    );
+                }
 
-                var hexagon = game.Hexagons.FirstOrDefault(h => h.Index == bestMoveIndex);
-                if (hexagon == null)
-                    throw new Exception($"Invalid move index {bestMoveIndex} for player {currentPlayer.PlayerNum}");
+                while (game.GameState != GameState.Finished)
+                {
+                    var currentPlayer = game.Players[game.CurrentMovePlayerIndex - 1];
 
-                game = game.Move(player, hexagon).Match(
-                    Some: updatedGame =>
+                    if (currentPlayer is not AiPlayer player)
+                        throw new Exception($"Experiments allow only {nameof(AiPlayer)} players");
+
+                    var bestMoveIndex = player.CalculateBestMoveAsync(game, cancellationToken).GetAwaiter().GetResult();
+                    var hexagon = game.Hexagons.FirstOrDefault(h => h.Index == bestMoveIndex);
+                    if (hexagon == null)
+                        throw new Exception($"Invalid move index {bestMoveIndex} for player {currentPlayer.PlayerNum}");
+
+                    // Console.WriteLine("Move");
+                    
+                    game = game.Move(player, hexagon).Match(
+                        Some: updatedGame =>
+                        {
+                            gameRepository.SaveGame(updatedGame);
+                            return updatedGame;
+                        },
+                        None: () => throw new Exception("Failed to make a move")
+                    );
+                }
+
+                Console.WriteLine($"Game {gameNum + 1} finished");
+                
+                var gameWinners = game.Players.Where(p => p.NumberOfWins > 0).ToList();
+                if (gameWinners.Count == 0)
+                {
+                    totalDraws++;
+                    matchDraws++;
+                }
+                else
+                {
+                    foreach (var winner in gameWinners)
                     {
-                        gameRepository.SaveGame(updatedGame);
-                        return updatedGame;
-                    },
-                    None: () => throw new Exception("Failed to make a move")
-                );
+                        totalWins[winner.GetType().Name]++;
+                        matchWins[winner.GetType().Name]++;
+                    }
+                }
             }
 
-            return game;
+            Console.WriteLine($"Results for combination: {string.Join(", ", combination.Select(p => p.Name))}");
+            foreach (var (playerName, wins) in matchWins)
+            {
+                Console.WriteLine($"{playerName}: {wins} wins");
+            }
+            Console.WriteLine($"Draws: {matchDraws}");
 
-        }).ToList();
-
-        clock.Stop();
-        Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
-
-        var gamesResults = finishedGames.Select(g => g.Players.Select(p => p.NumberOfWins).ToList()).ToList();
-
-        // Calculate aggregated results
-        var aggregatedResults = gamesResults
-            .Aggregate(
-                Enumerable.Repeat(0, gamesResults.First().Count()).ToList(),
-                (acc, gameResult) => acc.Zip(gameResult, (a, b) => a + b).ToList()
-            );
-
-        // Calculate the total number of games and draws
-        var totalGames = finishedGames.Count();
-        var totalDraws = totalGames - aggregatedResults.Sum(); // Assuming 1 win per game if no draws
-
-        // Display consolidated results
-        Console.WriteLine("Tournament Results:");
-        Console.WriteLine("-------------------");
-
-        for (var i = 0; i < aggregatedResults.Count; i++)
-        {
-            var winCount = aggregatedResults[i];
-            var winPercentage = (double)winCount / totalGames * 100;
-
-            Console.WriteLine($"Player {i + 1}: {winCount} wins ({winPercentage:F2}%) ({playerTypes[i].Name}) ");
+            tournamentResults.Add(new {
+                Combination = combination.Select(p => p.Name).ToArray(),
+                MatchWins = matchWins,
+                Draws = matchDraws
+            });
         }
 
-        var drawPercentage = (double)totalDraws / totalGames * 100;
-        Console.WriteLine($"Draws: {totalDraws} games ({drawPercentage:F2}%)");
+        clock.Stop();
+
+        var finalResults = new
+        {
+            TotalElapsedTimeMs = clock.ElapsedMilliseconds,
+            TotalWins = totalWins,
+            TotalDraws = totalDraws,
+            MatchResults = tournamentResults
+        };
+
+        await File.WriteAllTextAsync(resultsFile, JsonSerializer.Serialize(finalResults, new JsonSerializerOptions { WriteIndented = true }));
+
+        Console.WriteLine($"Elapsed Time: {clock.ElapsedMilliseconds} ms");
+        Console.WriteLine("Overall Tournament Results:");
+        Console.WriteLine("---------------------------");
+        foreach (var (playerName, winCount) in totalWins)
+        {
+            Console.WriteLine($"{playerName}: {winCount} total wins");
+        }
+        Console.WriteLine($"Total Draws: {totalDraws}");
+    }
+
+    static IEnumerable<IEnumerable<T>> GetCombinations<T>(T[] array, int size)
+    {
+        return GetCombinationsRecursive(array, size, 0);
+    }
+
+    static IEnumerable<IEnumerable<T>> GetCombinationsRecursive<T>(T[] array, int size, int start)
+    {
+        if (size == 0)
+        {
+            yield return Enumerable.Empty<T>();
+            yield break;
+        }
+
+        for (int i = start; i <= array.Length - size; i++)
+        {
+            foreach (var combination in GetCombinationsRecursive(array, size - 1, i + 1))
+            {
+                yield return new[] { array[i] }.Concat(combination);
+            }
+        }
     }
 }

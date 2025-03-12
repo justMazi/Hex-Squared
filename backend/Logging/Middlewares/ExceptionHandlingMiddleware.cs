@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using Logging.Exceptions;
 using Logging.Utils;
 using Microsoft.AspNetCore.Http;
 using Serilog;

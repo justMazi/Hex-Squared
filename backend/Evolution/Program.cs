@@ -5,14 +5,204 @@ using Infrastructure.Repositories;
 
 
 
+
 class Program
 {
     static void Main()
     {
-        var evolver = new HeuristicEvolver();
+        var evolver = new ProbabilityEvolver();
         evolver.RunEvolution();
+        
+        // var evolver = new HeuristicEvolver();
+        // evolver.RunEvolution();
     }
 }
+
+
+
+
+
+
+
+public class ProbabilityEvolver
+{
+    private Random _rand = new Random();
+    private readonly Dictionary<int, string> _heuristicNames = new()
+    {
+        { 0, "CenterControlHeuristic" },
+        { 1, "EdgeControlHeuristic" },
+        { 2, "PathFinderHeuristic" },
+        { 3, "RandomPlayer" }
+    };
+
+    public void RunEvolution(int popcount = 20, int generations = 400)
+    {
+        List<ProbabilityIndividual> population = Enumerable.Range(0, popcount)
+            .Select(_ => new ProbabilityIndividual(4)) // 4 heuristics
+            .ToList();
+
+        for (int generation = 0; generation < generations; generation++)
+        {
+            List<ProbabilityIndividual> newPopulation = new();
+            Dictionary<int, int> heuristicUsage = new() { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 3, 0 } };
+            int totalSelections = 0;
+
+            while (newPopulation.Count < popcount)
+            {
+                var candidates = population.OrderBy(_ => _rand.Next()).Take(3).ToList();
+                var winner = RunTournament(candidates, heuristicUsage);
+                newPopulation.Add(winner);
+            }
+
+            foreach (var individual in newPopulation)
+            {
+                individual.Mutate();
+            }
+
+            population = newPopulation;
+
+            Console.WriteLine($"Generation {generation} evolved.");
+            Console.WriteLine($"Heuristic Selection Stats:");
+
+            totalSelections = heuristicUsage.Values.Sum();
+            foreach (var kvp in heuristicUsage)
+            {
+                double percentage = totalSelections > 0 ? (double)kvp.Value / totalSelections * 100 : 0;
+                Console.WriteLine($"  {_heuristicNames[kvp.Key]}: {kvp.Value} times ({percentage:F2}%)");
+            }
+
+            Console.WriteLine();
+        }
+    }
+
+    private ProbabilityIndividual RunTournament(List<ProbabilityIndividual> candidates, Dictionary<int, int> heuristicUsage)
+    {
+        var gameRepository = new GameRepository();
+        var cancellationToken = new CancellationToken();
+        var game = gameRepository.CreateNewGame(new GameId("Tournament"), 6, typeof(MctsPlayer));
+
+        var players = candidates.Select((ind, index) => new ProbabilityPlayer(index + 1, ind, heuristicUsage)).ToList();
+
+        foreach (var player in players)
+        {
+            game = game.PickColor(player, player.PlayerNum).Match(
+                Some: updatedGame => { gameRepository.SaveGame(updatedGame); return updatedGame; },
+                None: () => throw new Exception("Couldn't pick the color")
+            );
+        }
+
+        while (game.GameState != GameState.Finished)
+        {
+            var currentPlayer = game.Players[game.CurrentMovePlayerIndex - 1];
+
+            if (currentPlayer is not AiPlayer player)
+                throw new Exception($"Experiments allow only {nameof(AiPlayer)} players");
+
+            var bestMoveIndex = player.CalculateBestMoveAsync(game, cancellationToken).GetAwaiter().GetResult();
+            var hexagon = game.Hexagons.FirstOrDefault(h => h.Index == bestMoveIndex);
+
+            if (hexagon == null)
+                throw new Exception($"Invalid move index {bestMoveIndex} for player {currentPlayer.PlayerNum}");
+
+            game = game.Move(player, hexagon).Match(
+                Some: updatedGame => { gameRepository.SaveGame(updatedGame); return updatedGame; },
+                None: () => throw new Exception("Failed to make a move")
+            );
+        }
+
+        var maxWins = game.Players.Max(p => p.NumberOfWins);
+        var winningPlayers = game.Players.Where(p => p.NumberOfWins == maxWins).ToList();
+
+        return winningPlayers.Count == 1 ? candidates[winningPlayers[0].PlayerNum - 1] : candidates[_rand.Next(3)];
+    }
+}
+
+public class ProbabilityIndividual
+{
+    private double[] _probabilities;
+    private Random _rand = new Random();
+
+    public ProbabilityIndividual(int numHeuristics)
+    {
+        _probabilities = Enumerable.Range(0, numHeuristics).Select(_ => _rand.NextDouble()).ToArray();
+        Normalize();
+    }
+
+    private void Normalize()
+    {
+        double sum = _probabilities.Sum();
+        for (int i = 0; i < _probabilities.Length; i++)
+        {
+            _probabilities[i] /= sum;
+        }
+    }
+
+    public int SampleHeuristic()
+    {
+        double r = _rand.NextDouble();
+        double cumulative = 0.0;
+        for (int i = 0; i < _probabilities.Length; i++)
+        {
+            cumulative += _probabilities[i];
+            if (r < cumulative)
+                return i;
+        }
+        return _probabilities.Length - 1;
+    }
+
+    public void Mutate(double mutationRate = 0.1)
+    {
+        for (int i = 0; i < _probabilities.Length; i++)
+        {
+            if (_rand.NextDouble() < mutationRate)
+            {
+                _probabilities[i] += (_rand.NextDouble() - 0.5) * 0.1;
+            }
+        }
+        Normalize();
+    }
+}
+
+public class ProbabilityPlayer(int playerNum, ProbabilityIndividual individual, Dictionary<int, int> heuristicUsage) : AiPlayer(playerNum)
+{
+    private readonly ProbabilityIndividual _individual = individual;
+    private readonly Dictionary<int, int> _heuristicUsage = heuristicUsage;
+
+    private readonly Func<Game, int, CancellationToken, Task<int>>[] _heuristics =
+    {
+        HeuristicHelper.CenterControlHeuristic,
+        HeuristicHelper.EdgeControlHeuristic,
+        HeuristicHelper.PathFinderHeuristic,
+        HeuristicHelper.RandomPlayer
+    };
+
+    public override async Task<int> CalculateBestMoveAsync(Game game, CancellationToken cancellationToken)
+    {
+        int selectedHeuristic = _individual.SampleHeuristic();
+
+        if (_heuristicUsage.ContainsKey(selectedHeuristic))
+            _heuristicUsage[selectedHeuristic]++;
+        else
+            _heuristicUsage[selectedHeuristic] = 1;
+
+        return await _heuristics[selectedHeuristic](game, playerNum, cancellationToken);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -44,7 +234,7 @@ public class HeuristicEvolver
         };
     }
     
-    public void RunEvolution(int popcount = 20, int generations = 40)
+    public void RunEvolution(int popcount = 5, int generations = 80)
     {
         // Update the input size to match board representation
         List<SimpleNn> population = Enumerable.Range(0, popcount)
@@ -73,7 +263,6 @@ public class HeuristicEvolver
 
             population = newPopulation;
 
-            // Print heuristic selection stats
             Console.WriteLine($"Generation {generation} evolved.");
             Console.WriteLine($"Heuristic Selection Stats:");
 
@@ -91,7 +280,7 @@ public class HeuristicEvolver
 
     private SimpleNn RunTournament(List<SimpleNn> candidates, Dictionary<int, int> heuristicUsage)
     {
-        foreach (var gameNum in Enumerable.Range(0, 10)) // Each tournament plays 1 game
+        foreach (var gameNum in Enumerable.Range(0, 10)) // Each tournament plays N games
         {
             var gameRepository = new GameRepository();
             var cancellationToken = new CancellationToken();
@@ -135,7 +324,7 @@ public class HeuristicEvolver
                 );
             }
 
-            // Determine winner
+            // Get winner
             var maxWins = game.Players.Max(p => p.NumberOfWins);
             var winningPlayers = game.Players.Where(p => p.NumberOfWins == maxWins).ToList();
 
@@ -238,7 +427,7 @@ public class SimpleNn
         return clone;
     }
 
-    public void Mutate(double mutationRate = 0.02)
+    public void Mutate(double mutationRate = 0.05)
     {
         MutateMatrix(_weightsInputHidden, mutationRate);
         MutateMatrix(_weightsHiddenOutput, mutationRate);

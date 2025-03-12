@@ -50,8 +50,8 @@ public class Startup(IConfiguration configuration,  IHostEnvironment environment
 
             app.UseCors(builder =>
             {
+                builder.WithOrigins(["http://localhost:3100", "http://localhost:5173", "hex.mazi.fun"]);
                 builder.AllowCredentials();
-                builder.SetIsOriginAllowed(_ => true);
                 builder.AllowAnyHeader();
                 builder.AllowAnyMethod();
             });

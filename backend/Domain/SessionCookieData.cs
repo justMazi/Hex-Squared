@@ -1,5 +1,3 @@
-﻿using Domain.Players;
-
-namespace Domain;
+﻿namespace Domain;
 
 public record SessionCookieData(string Id, int PlayerNumber);

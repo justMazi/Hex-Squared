@@ -1,5 +1,4 @@
 ﻿using Application.IRepositories;
-using Domain.Players;
 using Microsoft.Extensions.Hosting;
 
 namespace Application;

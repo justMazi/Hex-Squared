@@ -27,7 +27,7 @@ public class MctsPlayer(int playerNum) : AiPlayer(playerNum)
         var d2Rotate = game.To2DArray(rotatedHexes);
         var root = new MctsNode(d2Rotate, null, (byte)game.CurrentMovePlayerIndex.Value);
 
-        const int iterations = 4_000;
+        const int iterations = 2000;
         Mcts(root, iterations, rotation);
         
         var final = root.Children.MaxBy(child => child.TotalVisits);
