@@ -1,0 +1,18 @@
+services:
+  hex_backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: docker.mazi.lol/hex_backend:latest
+    platform: linux/arm64
+    ports:
+      - "8100:8000"
+
+  hex_frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: docker.mazi.lol/hex_frontend:latest
+    platform: linux/arm64
+    ports:
+      - "3100:3000"

@@ -1,0 +1,39 @@
+name: Build and Deploy Hex Fullstack App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker registry
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login docker.mazi.lol -u dockerPushUser --password-stdin
+      - name: Build and Push Hex Backend Image
+        run: |
+          docker compose -f docker-compose.yml build hex_backend
+          docker push docker.mazi.lol/hex_backend:latest
+      - name: Build and Push Hex Frontend Image
+        run: |
+          docker compose -f docker-compose.yml build hex_frontend
+          docker push docker.mazi.lol/hex_frontend:latest
+      - name: SSH into the server and run Ansible Playbook
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 49.12.98.103
+          username: root  # You are using the root user
+          key: ${{ secrets.ANSIBLE_SERVER_SSH_PRIVATE }}  # SSH private key
+          port: 22  # Default SSH port
+          script: |
+            ansible-playbook -i ~/ansible/hex_inventory.ini ~/ansible/hex_redeploy.yml
