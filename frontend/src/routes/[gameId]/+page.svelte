@@ -139,6 +139,9 @@
 				toast.success('You gave up! :(');
 			})
 			.catch((error) => toast.error('Error selecting player color:'));
+
+		// Perform full page reload
+		window.location.reload();
 	}
 
 	function move(q: number, r: number, s: number) {
