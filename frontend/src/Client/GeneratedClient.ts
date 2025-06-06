@@ -31,10 +31,10 @@ export class Client {
 
 		// Add query parameters for size and AI type if provided
 		let queryParams = [];
-		if (size !== undefined) {
+		if (size !== undefined && size !== null) {
 			queryParams.push(`size=${encodeURIComponent('' + size)}`);
 		}
-		if (ai !== undefined) {
+		if (ai !== undefined && ai !== null) {
 			queryParams.push(`aiType=${encodeURIComponent('' + ai)}`);
 		}
 		if (queryParams.length > 0) {
